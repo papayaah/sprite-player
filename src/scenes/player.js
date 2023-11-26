@@ -18,6 +18,7 @@ class PlayerScene extends Phaser.Scene {
     this.posX = null;
     this.posY = null;
     this.storageKey = null;
+    this.spritesheetKey = null;
   }
 
   create() {
@@ -47,12 +48,17 @@ class PlayerScene extends Phaser.Scene {
       this.posY = gameObject.y
     });
 
-    this.scene.get('GameScene').events.on('spriteSelected', (storageKey) => {
+    this.scene.get('GameScene').events.on('textureAdded', (data) => {
+      const { textureKey, storageKey } = data;
+      this.textureKey = textureKey
       this.storageKey = storageKey
       let existingData = localStorage.getItem(this.storageKey);
       existingData = existingData ? JSON.parse(existingData) : {};
+      console.log('textureAdded', existingData)
       this.numCols = existingData.numCols || this.numCols
       this.numRows = existingData.numRows || this.numRows
+      this.imageHeight = existingData.imageHeight
+      this.imageWidth = existingData.imageWidth
     });
   }
 
@@ -82,20 +88,16 @@ class PlayerScene extends Phaser.Scene {
     }
 
     this.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
-      // animation.msPerFrame = sliderValue;
-      // sprite.anims.timeScale = sliderValue;
       if (sliderData.label == 'Frame Rate') {
         this.frameRate = sliderData.value
       }
 
       if (sliderData.label == 'Cols') {
         this.numCols = sliderData.value;
-        this.updateStorage({ numCols: this.numCols })
       }
 
       if (sliderData.label == 'Rows') {
         this.numRows = sliderData.value;
-        this.updateStorage({ numRows: this.numRows })
       }
 
       if (sliderData.label == 'Scale') {
@@ -109,14 +111,13 @@ class PlayerScene extends Phaser.Scene {
       }
 
       // console.log(sliderData)
-      // animation.msPerFrame = sliderData.value;
-      // sprite.anims.play(animationKey, sliderData.value);
     }, this);
   }
 
   createAnimation(textureKey) {
     const spritesheetKey = `spritesheet-${this.animationKeyCounter++}`;
     this.spritesheetKey = spritesheetKey
+    console.log('set this.spritesheetKey', this.spritesheetKey,this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
@@ -173,29 +174,15 @@ class PlayerScene extends Phaser.Scene {
       this.events.emit('currentAnimation', {
         frameIndex: frame.index
       });
-  });
-
+    });
 
     this.input.setDraggable(sprite);
-
-    console.log(
-      'Animation Key: ' + animationKey,
-      'Scale: ' + this.spriteScale,
-      'Position X: ' + this.posX,
-      'Position Y: ' + this.posY,
-      'Sprite X: ' + sprite.x,
-      'Sprite Y: ' + sprite.y,
-      'Frame Width: ' + frameWidth,
-      'Frame Height: ' + frameHeight,
-      'Number of Columns: ' + this.numCols,
-      'Number of Rows: ' + this.numRows,
-      'Frame Rate: ' + this.frameRate
-    );
+    this.updateStorage()
 
     return sprite;
   }
 
-  updateStorage(newData) {
+  updateStorage() {
     // Retrieve the current data from localStorage
     let existingData = localStorage.getItem(this.storageKey);
 
@@ -204,14 +191,18 @@ class PlayerScene extends Phaser.Scene {
 
     // Merge newData with existingData
     // Assuming both existingData and newData are objects
-    const mergedData = { ...existingData, ...newData, ...{
-      frame: this.textures.getBase64(this.spritesheetKey, 0),
-    }};
+    const mergedData = {
+      ...existingData, ...{
+        numRows: this.numRows,
+        numCols: this.numCols,
+        frame: this.textures.getBase64(this.spritesheetKey, 0),
+      }
+    }
 
     // Save the merged data back to localStorage
     localStorage.setItem(this.storageKey, JSON.stringify(mergedData));
 
-    console.log(`Updated data for ${this.storageKey}`);
+    console.log(`Updated data for spritesheet: ${this.spritesheetKey} storage${this.storageKey}`);
   }
 }
 

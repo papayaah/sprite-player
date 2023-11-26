@@ -69,7 +69,7 @@ class UiScene extends Phaser.Scene {
     // Create a simple button
     let button = this.rexUI.add.label({
       width: 150,
-      height: 20,
+      height: 30,
       background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 20, PRIMARY_COLOR),
       fontSize: '20px',
       text: this.add.text(0, 0, 'Full Screen', {
@@ -97,7 +97,7 @@ class UiScene extends Phaser.Scene {
 
     box.add(button)
 
-    box.setPosition(this.game.config.width - 200, this.game.config.height - 30).layout()
+    box.setPosition(this.game.config.width - 200, this.game.config.height - 50).layout()
   }
 
   toggleFullScreen() {
@@ -156,7 +156,7 @@ class UiScene extends Phaser.Scene {
 
     const slider = this.rexUI.add.slider({
       width: sliderLength,
-      height: 10,
+      height: 20,
       track: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, PRIMARY_COLOR),
       thumb: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, ACCENT_COLOR),
       value: (initialValue - minValue) / (maxValue - minValue),
@@ -193,7 +193,6 @@ class UiScene extends Phaser.Scene {
     const minValue = slider.minValue
     const maxValue = slider.maxValue
     value = (value - minValue) / (maxValue - minValue)
-    console.log(value, minValue, maxValue)
     slider.setValue(value).layout()
   }
 

@@ -58,6 +58,9 @@ class MyGame extends Phaser.Scene {
 
     this.displaySavedFrames();
     new MiniSheet(this)
+
+    let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
+    console.log('currentFrameIndex', currentFrameIndex)
   }
 
   create() {
@@ -129,7 +132,7 @@ class MyGame extends Phaser.Scene {
               imageWidth,
               imageHeight,
             } = frameData;
-            this.scene.events.emit('spriteSelected', 'frame' + i);
+            // this.scene.events.emit('spriteSelected', 'frame' + i);
             self.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
           })
           .on('pointerover', () => {
@@ -203,7 +206,7 @@ class MyGame extends Phaser.Scene {
     // Construct the frame key
     let frameKey = 'frame' + currentFrameIndex;
 
-    // Save the frame data
+    console.log(`Updated data for ${frameKey}`);
     localStorage.setItem(frameKey, frameData);
 
     // Update the index for the next frame, wrapping back to 1 after 10
@@ -214,10 +217,6 @@ class MyGame extends Phaser.Scene {
   }
 
   displaySavedFrames() {
-    let startX = 10;  // Starting X position for the first frame
-    const startY = 10; // Y position for all frames
-    const spacing = 5; // Spacing between frames
-
     for (let i = 1; i <= 10; i++) {
       let frameData = localStorage.getItem('frame' + i);
       if (frameData) {

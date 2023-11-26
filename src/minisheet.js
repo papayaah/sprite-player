@@ -39,7 +39,7 @@ class MiniSheet {
       this.imageWidth = existingData.imageWidth
       this.destroyExisting()
       this.createMiniSheet()
-      console.log('minisheet created', existingData)
+      // console.log('minisheet created', existingData)
     });
   }
 
