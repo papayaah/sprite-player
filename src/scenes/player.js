@@ -10,8 +10,8 @@ class PlayerScene extends Phaser.Scene {
     // default values
     this.imageWidth = null;
     this.imageHeight = null;
-    this.numCols = 11;
-    this.numRows = 1;
+    this.numCols = 4;
+    this.numRows = 4;
     this.frameRate = 10;
     this.spriteScale = null;
     this.textureKey = null;
@@ -61,7 +61,7 @@ class PlayerScene extends Phaser.Scene {
       this.sprite.destroy();
       this.sprite = null;
     }
-    console.log('ceatesprite', this.posX)
+
     this.imageWidth = imageWidth
     this.imageHeight = imageHeight
     this.textureKey = textureKey
@@ -116,7 +116,7 @@ class PlayerScene extends Phaser.Scene {
 
   createAnimation(textureKey) {
     const spritesheetKey = `spritesheet-${this.animationKeyCounter++}`;
-
+    this.spritesheetKey = spritesheetKey
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
@@ -162,7 +162,7 @@ class PlayerScene extends Phaser.Scene {
       sprite.y = this.posY
     } else {
       sprite.x = game.config.width / 2;
-      sprite.y = game.config.height - uiHeight;
+      sprite.y = game.config.height / 2;
       this.posX = sprite.x
       this.posY = sprite.y
     }
@@ -204,7 +204,9 @@ class PlayerScene extends Phaser.Scene {
 
     // Merge newData with existingData
     // Assuming both existingData and newData are objects
-    const mergedData = { ...existingData, ...newData };
+    const mergedData = { ...existingData, ...newData, ...{
+      frame: this.textures.getBase64(this.spritesheetKey, 0),
+    }};
 
     // Save the merged data back to localStorage
     localStorage.setItem(this.storageKey, JSON.stringify(mergedData));

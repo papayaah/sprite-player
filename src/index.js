@@ -175,7 +175,7 @@ class MyGame extends Phaser.Scene {
     this.textures.addBase64(textureKey, imageData);
     this.textures.once('addtexture', () => {
       if (!storageKey) {
-        this.saveSpritesheet(textureKey, imageWidth, imageHeight)
+        storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight)
       }
       this.events.emit('textureAdded', { textureKey, storageKey });
       this.scene.get('PlayerScene').createSprite(textureKey, imageWidth, imageHeight)
@@ -184,14 +184,16 @@ class MyGame extends Phaser.Scene {
 
   saveSpritesheet(textureKey, imageWidth, imageHeight) {
     const spritesheetKey = `spritesheet-${Date.now()}`;
-    this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: 144, frameHeight: 64 });
+    this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: 32, frameHeight: 32 });
     let savedImage = {
       base64: this.textures.getBase64(textureKey),
       imageWidth,
       imageHeight,
+      numCols: 4,
+      numRows: 4,
       frame: this.textures.getBase64(spritesheetKey, 0),
     }
-    this.saveNewFrame(JSON.stringify(savedImage));
+    return this.saveNewFrame(JSON.stringify(savedImage));
   }
 
   saveNewFrame(frameData) {
@@ -207,8 +209,8 @@ class MyGame extends Phaser.Scene {
     // Update the index for the next frame, wrapping back to 1 after 10
     currentFrameIndex = currentFrameIndex >= 10 ? 1 : currentFrameIndex + 1;
 
-    console.log('saving as', currentFrameIndex)
     localStorage.setItem('currentFrameIndex', currentFrameIndex.toString());
+    return frameKey
   }
 
   displaySavedFrames() {
