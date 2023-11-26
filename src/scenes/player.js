@@ -63,23 +63,13 @@ class PlayerScene extends Phaser.Scene {
     this.textureKey = textureKey
     this.sprite = this.createAnimation(textureKey)
 
-
     const pane = this.scene.get('GameScene').pane
-
-    const spriteParams = {
-      x: this.sprite.x,
-      y: this.sprite.y,
-      sprite: this.sprite,
-    };
-
-    // Add folders and bindings for sprite properties
-    const folder = pane.addFolder({ title: 'Sprite Properties' });
+    const folder = pane.addFolder({ title: 'Sprite', expanded: false });
 
     for (let prop in this.sprite) {
       if (this.sprite.hasOwnProperty(prop)) {
         let value = this.sprite[prop];
         if (value !== null && typeof value !== 'object') {
-          console.log(`${prop}: ${value}`);
           folder.addBinding(this.sprite, prop, { readonly: true });
         }
 
@@ -168,6 +158,13 @@ class PlayerScene extends Phaser.Scene {
     }
     sprite.play(animationKey);
     sprite.setInteractive();
+
+    sprite.on('animationupdate', (anim, frame) => {
+      this.events.emit('currentAnimation', {
+        frameIndex: frame.index
+      });
+  });
+
 
     this.input.setDraggable(sprite);
 

@@ -13,6 +13,7 @@ import UiScene from './scenes/ui.js';
 
 import { BACKGROUND_COLOR, PRIMARY_COLOR } from './consts.js';
 import { printCaches } from './scenes/utils.js';
+import MiniSheet from './minisheet.js';
 
 var frameRate = 10;
 Dropzone.autoDiscover = false;
@@ -40,6 +41,8 @@ function centerSpriteInLabel(sprite, labelWidth, labelHeight) {
 class MyGame extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene', active: true });
+
+    this.miniSheet = null;
   }
 
   preload() {
@@ -56,18 +59,7 @@ class MyGame extends Phaser.Scene {
     this.pane.containerElem_.style.width = '320px';
     this.pane.addButton({ title: 'Refresh' }).on('click', () => { console.time('refresh'); this.pane.refresh(); console.timeEnd('refresh'); });
 
-    const folder = this.pane.addFolder({ title: 'Game', expanded: true });
-    //folder.addMonitor(this.game, 'hasFocus');
-    folder.addButton({ title: 'Step' }).on('click', () => { const t = performance.now(); const dt = loop._target; console.info('step', t, dt); this.game.step(t, dt); });
-    folder.addButton({ title: 'Destroy' }).on('click', () => { console.info('Destroy game'); this.game.destroy(true); });
-
-    const animsFolder = folder.addFolder({ title: 'Animations', expanded: false });
-    animsFolder.addButton({ title: 'Pause all' }).on('click', () => { console.info('Pause all animations'); anims.pauseAll(); });
-    animsFolder.addButton({ title: 'Resume all' }).on('click', () => { console.info('Resume all animations'); anims.resumeAll(); });
-    animsFolder.addButton({ title: 'Print animations' }).on('click', () => { console.info('Animations:'); console.table(anims.anims.getArray().map(animToPrint)); });
-    animsFolder.addButton({ title: 'Print JSON' }).on('click', () => { console.info(JSON.stringify(anims.toJSON())); });
-
-
+    const folder = this.pane.addFolder({ title: 'Game', expanded: false });
     //this.loadingText = this.add.text(100, 100, 'Loading...', { fill: '#ffffff' });
 
     this.load.image('logo', logoImg);
@@ -85,6 +77,7 @@ class MyGame extends Phaser.Scene {
     }
 
     this.displaySavedFrames();
+    new MiniSheet(this)
   }
 
 
@@ -149,19 +142,16 @@ class MyGame extends Phaser.Scene {
         item
           .setInteractive()
           .on('pointerdown', function () {
+            const storageKey = 'frame' + i
             let frameData = localStorage.getItem('frame' + i);
             frameData = JSON.parse(frameData);
             let {
               base64: imageData,
               imageWidth,
               imageHeight,
-              frameWidth,
-              frameHeight,
-              numRows,
-              numCols,
             } = frameData;
             this.scene.events.emit('spriteSelected', 'frame' + i);
-            self.playSpritesheet(imageData, imageWidth, imageHeight);
+            self.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
           })
 
         itemsBox.add(item);
@@ -178,14 +168,30 @@ class MyGame extends Phaser.Scene {
     this.initDropzone();
   }
 
-  playSpritesheet(imageData, imageWidth, imageHeight, save = false) {
+  createMiniSheet(frameData) {
+    let {
+      base64: imageData,
+      imageWidth,
+      imageHeight,
+      numRows,
+      numCols,
+    } = frameData;
+
+    if (this.miniSheet) {
+      this.miniSheet.destroyExisting();
+    }
+    this.miniSheet = new MiniSheet(this, textureKey, imageWidth, imageHeight, numRows, numCols);
+  }
+
+  playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
 
     const textureKey = `texture-${Date.now()}`;
     this.textures.addBase64(textureKey, imageData);
     this.textures.once('addtexture', () => {
-      if (save) {
+      if (!storageKey) {
         this.saveSpritesheet(textureKey, imageWidth, imageHeight)
       }
+      this.events.emit('textureAdded', { textureKey, storageKey });
       this.scene.get('PlayerScene').createSprite(textureKey, imageWidth, imageHeight)
     });
   }
@@ -249,7 +255,7 @@ class MyGame extends Phaser.Scene {
       // Access the width and height of the image
       var imageWidth = this.width;
       var imageHeight = this.height;
-      self.playSpritesheet(imageData, imageWidth, imageHeight, true);
+      self.playSpritesheet(imageData, imageWidth, imageHeight);
     };
     image.src = imageData;
   }
@@ -280,8 +286,8 @@ const config = {
   height: 600,
   scene: [MyGame, UiScene, PlayerScene],
   scale: {
-    // mode: Phaser.Scale.FIT,
-    // autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
   },
   plugins: {
     scene: [{

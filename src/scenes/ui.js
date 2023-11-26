@@ -94,7 +94,6 @@ class UiScene extends Phaser.Scene {
       // Exit fullscreen
       this.scale.stopFullscreen();
     } else {
-      // Start fullscreen
       this.scale.startFullscreen();
     }
   }
