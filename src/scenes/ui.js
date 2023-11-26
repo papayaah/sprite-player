@@ -3,6 +3,8 @@ import { ACCENT_COLOR, BACKGROUND_COLOR, PRIMARY_COLOR, TEXT_COLOR } from "../co
 class UiScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UiScene', active: true });
+    this.cols = 4
+    this.rows = 4
   }
 
   preload() {
@@ -10,10 +12,21 @@ class UiScene extends Phaser.Scene {
   }
 
   create() {
-
     const uiHeight = 100;
     const gameWidth = this.sys.game.config.width;
     const gameHeight = this.sys.game.config.height;
+
+    this.scene.get('GameScene').events.on('textureAdded', (data) => {
+      let { storageKey } = data
+      this.storageKey = storageKey
+      let existingData = localStorage.getItem(this.storageKey);
+      existingData = existingData ? JSON.parse(existingData) : {};
+      this.cols = existingData.numCols || this.cols
+      this.rows = existingData.numRows || this.rows
+
+      this.setSliderValue(this.colSlider, this.cols)
+      this.setSliderValue(this.rowSlider, this.rows)
+    });
 
     // Create a graphics object for the UI background
     const uiGraphics = this.add.graphics();
@@ -38,9 +51,7 @@ class UiScene extends Phaser.Scene {
       gameWidth, gameHeight - uiHeight // Ending point (x2, y2)
     );
 
-
     this.createUi()
-
 
     const box = this.rexUI.add.sizer({
       orientation: 'x',
@@ -110,8 +121,8 @@ class UiScene extends Phaser.Scene {
 
     // Add the 'Scale' slider and label to the sizer
     this.createSliderWithLabel(sizer, 'Scale', 3, 0.25, 10, true); // Initial value for 'Scale' slider
-    this.createSliderWithLabel(sizer, 'Cols', 4, 1, 30); // Initial value for 'Scale' slider
-    this.createSliderWithLabel(sizer, 'Rows', 4, 1, 30); // Initial value for 'Scale' slider
+    this.colSlider = this.createSliderWithLabel(sizer, 'Cols', this.cols, 1, 30); // Initial value for 'Scale' slider
+    this.rowSlider = this.createSliderWithLabel(sizer, 'Rows', this.rows, 1, 30); // Initial value for 'Scale' slider
     // Add some vertical space between the sliders
     sizer.addSpace(20);
 
@@ -157,11 +168,33 @@ class UiScene extends Phaser.Scene {
         this.scene.events.emit('sliderChanged', { label: labelText, value: adjustedValue });
       },
     }).layout();
+    slider.minValue = minValue
+    slider.maxValue = maxValue
+
+    box.setInteractive()
+    box.on('pointerover', () => {
+      this.game.canvas.classList.add('slider-hover-cursor');
+    })
+
+    box.on('pointerout', () => {
+      this.game.canvas.classList.remove('slider-hover-cursor');
+    })
 
     box.add(valueText);
     box.add(slider);
     box.add(label);
     sizer.add(box)
+
+    return slider
+  }
+
+  setSliderValue(slider, value)
+  {
+    const minValue = slider.minValue
+    const maxValue = slider.maxValue
+    value = (value - minValue) / (maxValue - minValue)
+    console.log(value, minValue, maxValue)
+    slider.setValue(value).layout()
   }
 
   createCheckboxWithLabel(labelText, initialValue) {

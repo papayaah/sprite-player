@@ -1,4 +1,4 @@
-import { ACCENT_COLOR, BACKGROUND_COLOR } from "../consts";
+import { ACCENT_COLOR, BACKGROUND_COLOR, DEBUG } from "../consts";
 
 class PlayerScene extends Phaser.Scene {
   constructor() {
@@ -23,9 +23,12 @@ class PlayerScene extends Phaser.Scene {
   create() {
     this.input.on('dragstart', function (pointer, gameObject) {
       gameObject.setTint(ACCENT_COLOR);
+      game.canvas.classList.add('grab-cursor');
     });
 
     this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+      game.canvas.classList.remove('grab-cursor');
+      game.canvas.classList.add('grabbing-cursor');
       const bottomLimit = this.game.config.height - 200;
 
       gameObject.x = dragX;
@@ -37,6 +40,7 @@ class PlayerScene extends Phaser.Scene {
     });
 
     this.input.on('dragend', (pointer, gameObject) => {
+      game.canvas.classList.remove('grabbing-cursor');
       gameObject.clearTint();
 
       this.posX = gameObject.x
@@ -63,16 +67,17 @@ class PlayerScene extends Phaser.Scene {
     this.textureKey = textureKey
     this.sprite = this.createAnimation(textureKey)
 
-    const pane = this.scene.get('GameScene').pane
-    const folder = pane.addFolder({ title: 'Sprite', expanded: false });
+    if (DEBUG) {
+      const pane = this.scene.get('GameScene').pane
+      const folder = pane.addFolder({ title: 'Sprite', expanded: false });
 
-    for (let prop in this.sprite) {
-      if (this.sprite.hasOwnProperty(prop)) {
-        let value = this.sprite[prop];
-        if (value !== null && typeof value !== 'object') {
-          folder.addBinding(this.sprite, prop, { readonly: true });
+      for (let prop in this.sprite) {
+        if (this.sprite.hasOwnProperty(prop)) {
+          let value = this.sprite[prop];
+          if (value !== null && typeof value !== 'object') {
+            folder.addBinding(this.sprite, prop, { readonly: true });
+          }
         }
-
       }
     }
 
@@ -110,7 +115,7 @@ class PlayerScene extends Phaser.Scene {
   }
 
   createAnimation(textureKey) {
-    const spritesheetKey = `spritesheet-${Date.now()}`;
+    const spritesheetKey = `spritesheet-${this.animationKeyCounter++}`;
 
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
@@ -127,19 +132,24 @@ class PlayerScene extends Phaser.Scene {
     // Create a sprite and play the animation
     const sprite = this.add.sprite(0, 0, spritesheetKey);
     // Calculate scale factors to fit the game canvas
-    const scaleX = game.config.width / sprite.width;
-    const scaleY = game.config.height / sprite.height;
-    const scale = Math.max(scaleX, scaleY); // Use the larger scale factor to maintain aspect ratio
+    // const scaleX = game.config.width / sprite.width;
+    // const scaleY = game.config.height / sprite.height;
+    // const scale = Math.max(scaleX, scaleY); // Use the larger scale factor to maintain aspect ratio
 
+    const maxHeight = 300;
+    const scale = Math.min(maxHeight / sprite.height, game.config.width / sprite.width);
+
+    // Set the sprite's scale
+    sprite.setScale(scale);
 
     // console.log(scale, sprite.width, scaleX, scaleY);
     // console.log(this.cameras.main.centerX, this.cameras.main.centerY);
 
     // Set the sprite's scale
     if (this.spriteScale) {
-      sprite.setScale(this.spriteScale)
+      //sprite.setScale(this.spriteScale)
     } else {
-      sprite.setScale(scale / 4)
+      //sprite.setScale(scale / 2)
       this.spriteScale = sprite.scale
     }
 

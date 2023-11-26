@@ -1,17 +1,14 @@
 import Phaser from 'phaser';
 import logoImg from './assets/logo.png';
-import backgroundImg from './assets/tiledemo.png'
+import backgroundImg from './assets/sewer.png'
 import Dropzone from "dropzone";
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin';
-import CreateScrollablePanel from './lib/CreateScrollablePanel.js';
-import CreateItemsBox from './lib/CreateItemsBox.js';
-import { CreateTitle } from './lib/CreateColumnPanel.js';
 import { Pane } from 'tweakpane';
 
 import PlayerScene from './scenes/player.js';
 import UiScene from './scenes/ui.js';
 
-import { BACKGROUND_COLOR, PRIMARY_COLOR } from './consts.js';
+import { BACKGROUND_COLOR, DEBUG, PRIMARY_COLOR } from './consts.js';
 import { printCaches } from './scenes/utils.js';
 import MiniSheet from './minisheet.js';
 
@@ -46,40 +43,22 @@ class MyGame extends Phaser.Scene {
   }
 
   preload() {
-    if (process.env.NODE_ENV === 'development') {
-      this.load.plugin('PhaserSceneWatcherPlugin', 'https://cdn.jsdelivr.net/npm/phaser-plugin-scene-watcher@6.0.0/dist/phaser-plugin-scene-watcher.umd.js', true);
+    if (DEBUG) {
+      this.load.plugin('PhaserSceneWatcherPlugin', 'https://cdn.jsdelivr.net/npm/phaser-plugin-scene-watcher@6.0.0/dist/phaser-plugin-scene-watcher.umd.js', false);
+
+      this.pane = new Pane();
+      this.pane.containerElem_.style.width = '320px';
     }
 
-    setTimeout(() => {
-    this.add.text(100, 100, 'Hello Phaser!', { fontFamily: 'monogram', fontSize: '50px', color: '#fff' });
-  }, 2000)
-
-
-    this.pane = new Pane();
-    this.pane.containerElem_.style.width = '320px';
-    this.pane.addButton({ title: 'Refresh' }).on('click', () => { console.time('refresh'); this.pane.refresh(); console.timeEnd('refresh'); });
-
-    const folder = this.pane.addFolder({ title: 'Game', expanded: false });
-    //this.loadingText = this.add.text(100, 100, 'Loading...', { fill: '#ffffff' });
+    // this.load.image('cursorDefault', 'assets/cursors/cursor_default.png');
+    // this.input.setDefaultCursor('url(assets/cursors/cursor_default), pointer');
 
     this.load.image('logo', logoImg);
     this.load.image('background', backgroundImg);
 
-    var savedImage = localStorage.getItem('savedImage');
-    if (savedImage) {
-      let imageData = JSON.parse(savedImage);
-
-      //this.loadImage(this, imageData.base64);
-      //this.textures.addBase64('customTexture', imageData.frame);
-      ////if(isBase64String(imageData.frame)) {
-      //this.add.sprite(0, 0, imageData.frame);
-      //}
-    }
-
     this.displaySavedFrames();
     new MiniSheet(this)
   }
-
 
   create() {
     let bg = this.add.sprite(this.cameras.main.centerX, this.cameras.main.centerY, 'background');
@@ -152,6 +131,13 @@ class MyGame extends Phaser.Scene {
             } = frameData;
             this.scene.events.emit('spriteSelected', 'frame' + i);
             self.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
+          })
+          .on('pointerover', () => {
+            this.game.canvas.classList.add('pointer-cursor');
+          })
+
+          .on('pointerout', () => {
+            this.game.canvas.classList.remove('pointer-cursor');
           })
 
         itemsBox.add(item);
