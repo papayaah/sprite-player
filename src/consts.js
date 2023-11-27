@@ -3,4 +3,4 @@ export const TEXT_COLOR = 0xf9a875
 export const PRIMARY_COLOR = 0xeb6b6f
 export const ACCENT_COLOR = 0xfff6d3
 
-export const DEBUG = false
+export const DEBUG = true

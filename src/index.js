@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import logoImg from './assets/logo.png';
 import backgroundImg from './assets/sewer.png'
+import portraitImg from './assets/talking.png'
 import Dropzone from "dropzone";
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin';
 import { Pane } from 'tweakpane';
@@ -11,6 +12,8 @@ import UiScene from './scenes/ui.js';
 import { BACKGROUND_COLOR, DEBUG, PRIMARY_COLOR } from './consts.js';
 import { printCaches } from './scenes/utils.js';
 import MiniSheet from './minisheet.js';
+import BubbleText from './bubbleText.js';
+import AnimatedSprite from './animatedSprite.js';
 
 var frameRate = 10;
 Dropzone.autoDiscover = false;
@@ -54,13 +57,14 @@ class MyGame extends Phaser.Scene {
     // this.input.setDefaultCursor('url(assets/cursors/cursor_default), pointer');
 
     this.load.image('logo', logoImg);
+    this.load.image('portrait', portraitImg);
     this.load.image('background', backgroundImg);
 
     this.displaySavedFrames();
     new MiniSheet(this)
 
-    let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
-    console.log('currentFrameIndex', currentFrameIndex)
+    // let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
+    this.blacksmith = new AnimatedSprite(this, 200, 300)
   }
 
   create() {
@@ -155,6 +159,10 @@ class MyGame extends Phaser.Scene {
 
     // Initialize Dropzone
     this.initDropzone();
+
+    new BubbleText(this).initialize()
+    this.blacksmith.initialize()
+    this.add.existing(this.blacksmith)
   }
 
   createMiniSheet(frameData) {
