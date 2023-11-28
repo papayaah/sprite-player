@@ -1,6 +1,6 @@
-import { ACCENT_COLOR, BACKGROUND_COLOR } from "./consts";
+import { ACCENT_COLOR, BACKGROUND_COLOR, FONT_SIZE, TEXT_COLOR } from "./consts";
 
-const content = `Hi there! Drag and drop any spritesheet file and use the settings below to adjust.`;
+const content = `Hello there! Drag and drop any spritesheet and use the settings below to adjust.`;
 
 class BubbleText {
   constructor(scene) {
@@ -100,10 +100,11 @@ var getBuiltInText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
 
 var getBBcodeText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
   return scene.rexUI.add.BBCodeText(0, 0, '', {
+    color: TEXT_COLOR,
     fixedWidth: fixedWidth,
     fixedHeight: fixedHeight,
     fontFamily: 'monogram',
-    fontSize: '32px',
+    fontSize: '40px',
     wrap: {
       mode: 'word',
       width: wrapWidth

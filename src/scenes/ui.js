@@ -135,13 +135,13 @@ class UiScene extends Phaser.Scene {
     const label = this.add.text(0, 0, labelText, {
       fontFamily: 'monogram',
       fontSize: FONT_SIZE,
-      color: hexToWebColor(PRIMARY_COLOR),
+      color: hexToWebColor(TEXT_COLOR),
     });
 
     const valueText = this.add.text(0, 0, `${initialValue}`, {
       fontFamily: 'monogram',
       fontSize: FONT_SIZE,
-      color: '#' + PRIMARY_COLOR.toString(16),
+      color: hexToWebColor(TEXT_COLOR),
     });
 
     const slider = this.rexUI.add.slider({
@@ -198,7 +198,7 @@ class UiScene extends Phaser.Scene {
     const label = this.add.text(0, 0, labelText, {
       fontFamily: 'monogram',
       fontSize: FONT_SIZE,
-      color: '#ffffff'
+      color: hexToWebColor(TEXT_COLOR)
     })
 
     var checkbox = this.add.rexCheckbox(0, 0, 20, 20, {

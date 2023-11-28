@@ -236,6 +236,16 @@ class PlayerScene extends Phaser.Scene {
     // Save the merged data back to localStorage
     localStorage.setItem(this.storageKey, JSON.stringify(mergedData));
 
+    // //this.scene.get('GameScene').loadSavedFrames()
+    // if (this.textures.exists(this.storageKey)) {
+    //   this.textures.remove(this.storageKey)
+    // }
+    // this.textures.addBase64(this.storageKey, mergedData.frame)
+    // this.textures.once('addtexture', () => {
+    //   this.scene.get('GameScene').createSavedFrames()
+    // })
+
+
     console.log(`Updated data for spritesheet: ${this.spritesheetKey} storage${this.storageKey}`);
   }
 }
