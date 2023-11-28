@@ -5,20 +5,22 @@ class PlayerScene extends Phaser.Scene {
     super({ key: 'PlayerScene', active: true });
 
     this.sprite = null;
-    this.animationKeyCounter = 0; // Initialize a counter for animation keys
+    this.animationKeyCounter = 0 // Initialize a counter for animation keys
 
     // default values
-    this.imageWidth = null;
-    this.imageHeight = null;
-    this.numCols = 4;
-    this.numRows = 4;
-    this.frameRate = 10;
-    this.spriteScale = null;
-    this.textureKey = null;
-    this.posX = null;
-    this.posY = null;
-    this.storageKey = null;
-    this.spritesheetKey = null;
+    this.imageWidth = null
+    this.imageHeight = null
+    this.numCols = 4
+    this.numRows = 4
+    this.frameRate = 10
+    this.spriteScale = null
+    this.textureKey = null
+    this.posX = null
+    this.posY = null
+    this.storageKey = null
+    this.spritesheetKey = null
+    this.debounceTimer = null
+
   }
 
   create() {
@@ -54,13 +56,39 @@ class PlayerScene extends Phaser.Scene {
       this.storageKey = storageKey
       let existingData = localStorage.getItem(this.storageKey);
       existingData = existingData ? JSON.parse(existingData) : {};
-      console.log('textureAdded', existingData)
+      // console.log('textureAdded', existingData)
       this.numCols = existingData.numCols || this.numCols
       this.numRows = existingData.numRows || this.numRows
       this.imageHeight = existingData.imageHeight
       this.imageWidth = existingData.imageWidth
     });
+
+    this.input.keyboard.on('keydown-Y', function (event) {
+      this.sprite.anims.yoyo = !this.sprite.anims.yoyo;
+      this.events.emit('yoyo', this.sprite.anims.yoyo);
+    }, this);
+
+    this.input.keyboard.on('keydown-Q', function (event) {
+      this.sprite.playReverse('walk');
+    }, this);
+
+    this.input.keyboard.on('keydown-R', function (event) {
+      this.sprite.anims.reverse()
+      this.events.emit('reverse', this.sprite.anims.inReverse)
+    }, this);
+    this.input.keyboard.on('keydown-P', function (event) {
+
+      if (this.sprite.anims.isPaused) {
+        this.sprite.anims.resume();
+      }
+      else {
+        this.sprite.anims.pause();
+      }
+      this.events.emit('pause', this.sprite.anims.isPaused);
+    }, this);
   }
+
+
 
   createSprite(textureKey, imageWidth, imageHeight) {
     if (this.sprite) {
@@ -117,7 +145,7 @@ class PlayerScene extends Phaser.Scene {
   createAnimation(textureKey) {
     const spritesheetKey = `spritesheet-${this.animationKeyCounter++}`;
     this.spritesheetKey = spritesheetKey
-    console.log('set this.spritesheetKey', this.spritesheetKey,this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
+    // console.log('set this.spritesheetKey', this.spritesheetKey, this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
@@ -177,7 +205,13 @@ class PlayerScene extends Phaser.Scene {
     });
 
     this.input.setDraggable(sprite);
-    this.updateStorage()
+
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    this.debounceTimer = setTimeout(() => {
+      this.updateStorage()
+    }, 1000);
 
     return sprite;
   }

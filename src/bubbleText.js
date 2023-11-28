@@ -8,43 +8,20 @@ class BubbleText {
   }
 
   initialize() {
-    createTextBox(this.scene, 100, 200, {
+    this.textBox = createTextBox(this.scene, 220, 150, {
       wrapWidth: 500,
     })
       .start(content, 10)
   }
 
-  // preload() {
-  //     this.load.scenePlugin({
-  //         key: 'rexuiplugin',
-  //         url: 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexuiplugin.min.js',
-  //         sceneKey: 'rexUI'
-  //     });
-
-  //     this.load.image('nextPage', 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/assets/images/arrow-down-left.png');
-  // }
-
-  // create() {
-  //     createTextBox(this, 100, 200, {
-  //             wrapWidth: 500,
-  //         })
-  //         .start(content, 50);
-
-  //     createTextBox(this, 100, 500, {
-  //             wrapWidth: 500,
-  //             fixedWidth: 500,
-  //             fixedHeight: 65,
-  //         })
-  //         .start(content, 50);
-  // }
-
-  // update() {}
+  destroy() {
+    this.textBox.destroy()
+  }
 }
-
 
 const GetValue = Phaser.Utils.Objects.GetValue;
 var createTextBox = function (scene, x, y, config) {
-  const portraitSprite = scene.add.sprite(0, 0, 'portrait')
+  //const portraitSprite = scene.add.sprite(0, 0, 'portrait')
   //portraitSprite.flipX = true
   var wrapWidth = GetValue(config, 'wrapWidth', 0);
   var fixedWidth = GetValue(config, 'fixedWidth', 0);
@@ -59,7 +36,7 @@ var createTextBox = function (scene, x, y, config) {
 
     // need to be face
     // icon: scene.rexUI.add.roundRectangle(0, 0, 2, 2, 20, ACCENT_COLOR),
-    icon: portraitSprite,
+    icon: scene.add.sprite(0, 0, 'portrait'),
 
     // text: getBuiltInText(scene, wrapWidth, fixedWidth, fixedHeight),
     text: getBBcodeText(scene, wrapWidth, fixedWidth, fixedHeight),
@@ -73,6 +50,7 @@ var createTextBox = function (scene, x, y, config) {
     }
   })
     .setOrigin(0, 1)
+    .setScale(0.75)
     .layout();
 
   textBox
@@ -111,7 +89,7 @@ var createTextBox = function (scene, x, y, config) {
 
 var getBuiltInText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
   return scene.add.text(0, 0, '', {
-    fontSize: '20px',
+    fontSize: '24px',
     wordWrap: {
       width: wrapWidth
     },
@@ -125,7 +103,7 @@ var getBBcodeText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
     fixedWidth: fixedWidth,
     fixedHeight: fixedHeight,
     fontFamily: 'monogram',
-    fontSize: '28px',
+    fontSize: '32px',
     wrap: {
       mode: 'word',
       width: wrapWidth
@@ -156,8 +134,7 @@ var CreateSpeechBubbleShape = function (scene, fillColor, strokeColor) {
         .lineTo(left + radius, boxBottom).arc(left + radius, boxBottom - radius, radius, 90, 180)
         // left line, top arc
         .lineTo(left, top + radius).arc(left + radius, top + radius, radius, 180, 270)
-        .close();
-
+        .close()
     }
   })
 }

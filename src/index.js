@@ -10,33 +10,11 @@ import PlayerScene from './scenes/player.js';
 import UiScene from './scenes/ui.js';
 
 import { BACKGROUND_COLOR, DEBUG, PRIMARY_COLOR } from './consts.js';
-import { printCaches } from './scenes/utils.js';
 import MiniSheet from './minisheet.js';
 import BubbleText from './bubbleText.js';
 import AnimatedSprite from './animatedSprite.js';
 
-var frameRate = 10;
 Dropzone.autoDiscover = false;
-
-
-function isBase64String(data) {
-  // Regular expression to match Base64 characters
-  const base64Pattern = /^[A-Za-z0-9+/=]+$/;
-  return base64Pattern.test(data);
-}
-
-function scaleSpriteToFit(sprite, maxWidth, maxHeight) {
-  const scaleX = maxWidth / sprite.width;
-  const scaleY = maxHeight / sprite.height;
-  const scale = Math.min(scaleX, scaleY);
-  sprite.setScale(scale);
-  return sprite;
-}
-
-function centerSpriteInLabel(sprite, labelWidth, labelHeight) {
-  sprite.setX(labelWidth / 2 - sprite.displayWidth / 2);
-  sprite.setY(labelHeight / 2 - sprite.displayHeight / 2);
-}
 
 class MyGame extends Phaser.Scene {
   constructor() {
@@ -68,14 +46,12 @@ class MyGame extends Phaser.Scene {
   }
 
   create() {
-    let bg = this.add.sprite(this.cameras.main.centerX, this.cameras.main.centerY, 'background');
-
-    // Calculate the scale ratio
-    let scaleX = this.scale.width / bg.width;
-    let scaleY = this.scale.height / bg.height;
-    let maxScale = Math.max(scaleX, scaleY);
-    bg.setScale(maxScale)
-      .setOrigin(0.5, 0.5)
+    // let bg = this.add.sprite(this.cameras.main.centerX, this.cameras.main.centerY, 'background')
+    // let scaleX = this.scale.width / bg.width
+    // let scaleY = this.scale.height / bg.height
+    // let maxScale = Math.max(scaleX, scaleY)
+    // bg.setScale(maxScale)
+    //   .setOrigin(0.5, 0.5)
 
     var itemsBox = this.rexUI.add.sizer({
       orientation: 'y',
@@ -136,7 +112,6 @@ class MyGame extends Phaser.Scene {
               imageWidth,
               imageHeight,
             } = frameData;
-            // this.scene.events.emit('spriteSelected', 'frame' + i);
             self.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
           })
           .on('pointerover', () => {
@@ -160,7 +135,8 @@ class MyGame extends Phaser.Scene {
     // Initialize Dropzone
     this.initDropzone();
 
-    new BubbleText(this).initialize()
+    this.bubbleText = new BubbleText(this)
+    this.bubbleText.initialize()
     this.blacksmith.initialize()
     this.add.existing(this.blacksmith)
   }
@@ -181,6 +157,8 @@ class MyGame extends Phaser.Scene {
   }
 
   playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
+    this.bubbleText.destroy()
+    this.blacksmith.destroy()
 
     const textureKey = `texture-${Date.now()}`;
     this.textures.addBase64(textureKey, imageData);
