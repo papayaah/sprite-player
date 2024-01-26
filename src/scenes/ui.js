@@ -13,13 +13,13 @@ class UiScene extends Phaser.Scene {
   }
 
   create() {
-    const uiHeight = 100;
+    if (!this.plugins.isActive('rexcheckboxplugin')) return
 
     this.scene.get('GameScene').events.on('textureAdded', (data) => {
       let { storageKey } = data
       this.storageKey = storageKey
-      let existingData = localStorage.getItem(this.storageKey);
-      existingData = existingData ? JSON.parse(existingData) : {};
+      let existingData = localStorage.getItem(this.storageKey)
+      existingData = existingData ? JSON.parse(existingData) : {}
       this.cols = existingData.numCols || this.cols
       this.rows = existingData.numRows || this.rows
 
@@ -32,11 +32,11 @@ class UiScene extends Phaser.Scene {
   }
 
   createBackground() {
-    const gameWidth = this.sys.game.config.width;
-    const gameHeight = this.sys.game.config.height;
+    const gameWidth = this.sys.game.config.width
+    const gameHeight = this.sys.game.config.height
 
-    const uiGraphics = this.add.graphics();
-    uiGraphics.fillStyle(BACKGROUND_COLOR, 1);
+    const uiGraphics = this.add.graphics()
+    uiGraphics.fillStyle(BACKGROUND_COLOR, 1)
 
     // Draw the UI background rectangle
     uiGraphics.fillRect(
@@ -44,7 +44,7 @@ class UiScene extends Phaser.Scene {
       gameHeight - UI_HEIGHT,  // y position, 100 pixels from the bottom
       gameWidth,              // width of the UI background
       UI_HEIGHT                // height of the UI background
-    );
+    )
 
     // Set the line style for the top border (e.g., 2 pixels thick, white color)
     uiGraphics.lineStyle(2, ACCENT_COLOR, 1)
@@ -53,7 +53,7 @@ class UiScene extends Phaser.Scene {
     uiGraphics.lineBetween(
       0, gameHeight - UI_HEIGHT, // Starting point (x1, y1)
       gameWidth, gameHeight - UI_HEIGHT // Ending point (x2, y2)
-    );
+    )
   }
 
   createFullscreenButton() {
@@ -106,20 +106,19 @@ class UiScene extends Phaser.Scene {
     // Layout the sizer
     sizer.setOrigin(0, 0).layout();
 
-
     const box = this.rexUI.add.sizer({
       orientation: 'x',
       space: {
-        bottom: 5,
+        left: 10,
+        bottom: 10,
       },
     })
 
-    box.add(this.createCheckboxWithLabel('Reverse', false))
-    box.add(this.createCheckboxWithLabel('Yoyo', false))
-    box.add(this.createCheckboxWithLabel('Pause', false))
-    box.setPosition(this.game.config.width - getSizerTotalWidth(box), this.game.config.height - 50).layout()
-    //sizer.add(box).layout()
-
+    box.add(this.createCheckboxWithLabel('<R>everse', false))
+    box.add(this.createCheckboxWithLabel('<Y>oyo', false))
+    box.add(this.createCheckboxWithLabel('<P>ause', false))
+    box.setPosition(0, 0).layout()
+    sizer.add(box).layout()
   }
 
   createSliderWithLabel(sizer, labelText, initialValue, minValue, maxValue, useDecimals) {
@@ -211,18 +210,18 @@ class UiScene extends Phaser.Scene {
     box.layout()
 
 
-    this.scene.get('PlayerScene').events.on('pause', (value) => {
-      if(labelText == 'Pause') {
+    this.scene.get('GameScene').events.on('pause', (value) => {
+      if(labelText == '<P>ause') {
         checkbox.setChecked(value)
       }
     })
-    this.scene.get('PlayerScene').events.on('reverse', (value) => {
-      if(labelText == 'Reverse') {
+    this.scene.get('GameScene').events.on('reverse', (value) => {
+      if(labelText == '<R>everse') {
         checkbox.setChecked(value)
       }
     })
-    this.scene.get('PlayerScene').events.on('yoyo', (value) => {
-      if(labelText == 'Yoyo') {
+    this.scene.get('GameScene').events.on('yoyo', (value) => {
+      if(labelText == '<Y>oyo') {
         checkbox.setChecked(value)
       }
     })

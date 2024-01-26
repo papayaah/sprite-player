@@ -1,6 +1,6 @@
 import { ACCENT_COLOR, BACKGROUND_COLOR, FONT_SIZE, TEXT_COLOR } from "./consts";
 
-const content = `Hello there! Drag and drop any spritesheet and use the settings below to adjust.`;
+const content = `Well, hello! Welcome and please stay. Drag and drop spritesheet and use the settings to adjust.`;
 
 class BubbleText {
   constructor(scene) {

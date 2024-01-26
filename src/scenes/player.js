@@ -1,8 +1,12 @@
 import { ACCENT_COLOR, BACKGROUND_COLOR, DEBUG } from "../consts";
 
-class PlayerScene extends Phaser.Scene {
-  constructor() {
-    super({ key: 'PlayerScene', active: true });
+class Player {
+  constructor(scene) {
+    this.scene = scene
+    this.events = scene.events
+    this.input = scene.input
+    this.textures = scene.textures
+    this.anims = scene.anims
 
     this.sprite = null;
     this.animationKeyCounter = 0 // Initialize a counter for animation keys
@@ -32,7 +36,7 @@ class PlayerScene extends Phaser.Scene {
     this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
       game.canvas.classList.remove('grab-cursor');
       game.canvas.classList.add('grabbing-cursor');
-      const bottomLimit = this.game.config.height - 200;
+      const bottomLimit = game.config.height - 200;
 
       gameObject.x = dragX;
       if (dragY > bottomLimit) {
@@ -50,34 +54,34 @@ class PlayerScene extends Phaser.Scene {
       this.posY = gameObject.y
     });
 
-    this.scene.get('GameScene').events.on('textureAdded', (data) => {
+    this.events.on('textureAdded', (data) => {
       const { textureKey, storageKey } = data;
       this.textureKey = textureKey
       this.storageKey = storageKey
       let existingData = localStorage.getItem(this.storageKey);
       existingData = existingData ? JSON.parse(existingData) : {};
-      // console.log('textureAdded', existingData)
+      // console.log(`textureAdded: ${storageKey}`, existingData)
       this.numCols = existingData.numCols || this.numCols
       this.numRows = existingData.numRows || this.numRows
       this.imageHeight = existingData.imageHeight
       this.imageWidth = existingData.imageWidth
+
+      this.createSprite(textureKey, this.imageWidth, this.imageHeight)
     });
 
     this.input.keyboard.on('keydown-Y', function (event) {
+      if(!this.sprite) return
       this.sprite.anims.yoyo = !this.sprite.anims.yoyo;
       this.events.emit('yoyo', this.sprite.anims.yoyo);
     }, this);
 
-    this.input.keyboard.on('keydown-Q', function (event) {
-      this.sprite.playReverse('walk');
-    }, this);
-
     this.input.keyboard.on('keydown-R', function (event) {
+      if(!this.sprite) return
       this.sprite.anims.reverse()
       this.events.emit('reverse', this.sprite.anims.inReverse)
     }, this);
     this.input.keyboard.on('keydown-P', function (event) {
-
+      if(!this.sprite) return
       if (this.sprite.anims.isPaused) {
         this.sprite.anims.resume();
       }
@@ -87,8 +91,6 @@ class PlayerScene extends Phaser.Scene {
       this.events.emit('pause', this.sprite.anims.isPaused);
     }, this);
   }
-
-
 
   createSprite(textureKey, imageWidth, imageHeight) {
     if (this.sprite) {
@@ -102,7 +104,7 @@ class PlayerScene extends Phaser.Scene {
     this.sprite = this.createAnimation(textureKey)
 
     if (DEBUG) {
-      const pane = this.scene.get('GameScene').pane
+      const pane = this.scene.scene.get('GameScene').pane
       const folder = pane.addFolder({ title: 'Sprite', expanded: false });
 
       for (let prop in this.sprite) {
@@ -115,7 +117,7 @@ class PlayerScene extends Phaser.Scene {
       }
     }
 
-    this.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
+    this.scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (sliderData.label == 'Frame Rate') {
         this.frameRate = sliderData.value
       }
@@ -159,7 +161,7 @@ class PlayerScene extends Phaser.Scene {
     });
 
     // Create a sprite and play the animation
-    const sprite = this.add.sprite(0, 0, spritesheetKey);
+    const sprite = this.scene.add.sprite(0, 0, spritesheetKey);
     // Calculate scale factors to fit the game canvas
     // const scaleX = game.config.width / sprite.width;
     // const scaleY = game.config.height / sprite.height;
@@ -235,19 +237,10 @@ class PlayerScene extends Phaser.Scene {
 
     // Save the merged data back to localStorage
     localStorage.setItem(this.storageKey, JSON.stringify(mergedData));
+    this.events.emit('storageItemUpdated', this.storageKey)
 
-    // //this.scene.get('GameScene').loadSavedFrames()
-    // if (this.textures.exists(this.storageKey)) {
-    //   this.textures.remove(this.storageKey)
-    // }
-    // this.textures.addBase64(this.storageKey, mergedData.frame)
-    // this.textures.once('addtexture', () => {
-    //   this.scene.get('GameScene').createSavedFrames()
-    // })
-
-
-    console.log(`Updated data for spritesheet: ${this.spritesheetKey} storage${this.storageKey}`);
+    // console.log(`Updated data for spritesheet: ${this.spritesheetKey} storage${this.storageKey}`);
   }
 }
 
-export default PlayerScene
+export default Player

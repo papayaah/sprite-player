@@ -5,7 +5,7 @@ import Dropzone from "dropzone";
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin';
 import { Pane } from 'tweakpane';
 
-import PlayerScene from './scenes/player.js';
+import Player from './scenes/player.js';
 import UiScene from './scenes/ui.js';
 
 import { DEBUG } from './consts.js';
@@ -37,6 +37,7 @@ class GameScene extends Phaser.Scene {
     this.bubbleText = new BubbleText(this)
     this.thumbs = new Thumbs(this)
     this.thumbs.preload()
+    this.player = new Player(this)
     new MiniSheet(this)
 
     // let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
@@ -56,6 +57,7 @@ class GameScene extends Phaser.Scene {
 
     //this.createSavedFrames()
 
+    this.player.create()
     this.thumbs.create()
     this.bubbleText.initialize()
     this.blacksmith.initialize()
@@ -70,6 +72,14 @@ class GameScene extends Phaser.Scene {
       } = frameData;
       this.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
     }, this)
+
+    this.events.on('storageItemUpdated', (storageKey) => {
+      this.thumbs.reload(()=>{
+        setTimeout(() => {
+          this.thumbs.create()
+        }, 50)
+      })
+    })
   }
 
   createMiniSheet(frameData) {
@@ -96,9 +106,15 @@ class GameScene extends Phaser.Scene {
     this.textures.once('addtexture', () => {
       if (!storageKey) {
         storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight)
+        this.thumbs.reload(()=>{
+          setTimeout(() => {
+            this.thumbs.create()
+          }, 500)
+        })
       }
       this.events.emit('textureAdded', { textureKey, storageKey });
-      this.scene.get('PlayerScene').createSprite(textureKey, imageWidth, imageHeight)
+
+      //this.player.createSprite(textureKey, imageWidth, imageHeight)
     })
   }
 
@@ -123,7 +139,7 @@ class GameScene extends Phaser.Scene {
     // Construct the frame key
     let frameKey = 'frame' + currentFrameIndex
 
-    console.log(`Updated data for ${frameKey}`)
+    // console.log(`Updated data for ${frameKey}`, JSON.parse(frameData))
     localStorage.setItem(frameKey, frameData)
 
     // Update the index for the next frame, wrapping back to 1 after 10
@@ -134,30 +150,29 @@ class GameScene extends Phaser.Scene {
   }
 
   loadImage(self, imageData) {
-    var image = new Image();
-    image.onload = function () {
-      // Access the width and height of the image
-      var imageWidth = this.width;
-      var imageHeight = this.height;
-      self.playSpritesheet(imageData, imageWidth, imageHeight);
-    };
-    image.src = imageData;
+    const image = new Image()
+    image.onload = function() {
+      const imageWidth = this.width
+      const imageHeight = this.height
+      self.playSpritesheet(imageData, imageWidth, imageHeight)
+    }
+    image.src = imageData
   }
 
   initDropzone() {
-    var self = this;
+    const self = this
     new Dropzone("#dropzone", {
       url: '/',
       autoProcessQueue: false,
       clickable: false,
-      addedfile: function (file) {
-        var reader = new FileReader();
+      addedfile: (file) => {
+        const reader = new FileReader()
         reader.onload = function (e) {
-          self.loadImage(self, e.target.result);
+          self.loadImage(self, e.target.result)
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file)
       }
-    });
+    })
   }
 }
 
@@ -168,7 +183,7 @@ const config = {
   roundPixels: true,
   width: 800,
   height: 600,
-  scene: [GameScene, UiScene, PlayerScene],
+  scene: [GameScene, UiScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,

@@ -1,7 +1,7 @@
 import { ACCENT_COLOR, TEXT_COLOR } from "./consts";
 
 const MAX_WIDTH_OFFSET = 150
-const MAX_HEIGHT = 300
+const MAX_HEIGHT = 250
 
 class MiniSheet {
   constructor(scene) {

@@ -5,22 +5,39 @@ const MAX_THUMBS = 10
 class Thumbs {
   constructor(scene) {
     this.scene = scene
+    this.textures = scene.textures
 
     this.container = this.scene.add.container(10, 10);
   }
 
   preload() {
+    this.reload()
+  }
+
+  reload(callback) {
+    this.destroy()
+
+    let thumbsCount = 0
+    let thumbsLoaded = 0
     for (let i = 1; i <= MAX_THUMBS; i++) {
       let frameData = localStorage.getItem('frame' + i);
       if (frameData) {
+        thumbsCount++
         frameData = JSON.parse(frameData);
-        this.scene.textures.addBase64('frame' + i, frameData.frame);
+        const storageKey = 'frame' + i
+        if (this.textures.exists(storageKey)) {
+          this.textures.remove(storageKey)
+        }
+
+        this.textures.addBase64(storageKey, frameData.frame)
+        this.textures.once('addtexture', () => {
+          thumbsLoaded++
+          if(thumbsLoaded == thumbsCount) {
+            if(callback) callback()
+          }
+        })
       }
     }
-  }
-
-  reload() {
-
   }
 
   create() {
@@ -43,7 +60,7 @@ class Thumbs {
     const startY = 20; // Y position for all frames
     const spacing = 0; // Spacing between frames
     const self = this
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= MAX_THUMBS; i++) {
       let frameData = localStorage.getItem('frame' + i);
       if (frameData) {
         frameData = JSON.parse(frameData);
@@ -106,6 +123,7 @@ class Thumbs {
   destroy() {
     if (this.container) {
       this.container.destroy();
+      this.container = this.scene.add.container(10, 10);
     }
   }
 }
