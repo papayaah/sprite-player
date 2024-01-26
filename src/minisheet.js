@@ -39,8 +39,11 @@ class MiniSheet {
       this.imageWidth = existingData.imageWidth
       this.destroyExisting()
       this.createMiniSheet()
-      // console.log('minisheet created', existingData)
-    });
+    })
+
+    scene.scene.get('GameScene').events.on('thumbSelected', () => {
+      this.selectedCells = []
+    })
   }
 
   destroyExisting() {
@@ -77,6 +80,21 @@ class MiniSheet {
     this.container.add(miniSheet);
 
     this.drawGrid()
+
+    // Initialize selection properties
+    this.isDragging = false;
+    this.selectionStartCell = null;
+    this.selectionEndCell = null;
+
+    this.highlightsGraphics = this.scene.add.graphics({ fillStyle: { color: ACCENT_COLOR, alpha: 0.3 } });
+    this.container.add(this.highlightsGraphics);
+
+    // Add mouse event listeners
+    this.container.setInteractive();
+    this.scene.input.on('pointerdown', this.onDragStart, this);
+    this.scene.input.on('pointermove', this.onDragMove, this);
+    this.scene.input.on('pointerup', this.onDragEnd, this);
+
   }
 
   drawGrid() {
@@ -126,6 +144,23 @@ class MiniSheet {
     }
   }
 
+  drawHighlights() {
+    if (!this.isDragging) return;
+
+    this.highlightsGraphics.clear();
+
+    const scale = this.calculateScale();
+    const miniFrameWidth = this.imageWidth / this.cols * scale;
+    const miniFrameHeight = this.imageHeight / this.rows * scale;
+
+    // Highlight selected cells
+    for (let col = Math.min(this.selectionStartCell.col, this.selectionEndCell.col); col <= Math.max(this.selectionStartCell.col, this.selectionEndCell.col); col++) {
+      for (let row = Math.min(this.selectionStartCell.row, this.selectionEndCell.row); row <= Math.max(this.selectionStartCell.row, this.selectionEndCell.row); row++) {
+        this.highlightsGraphics.fillRect(col * miniFrameWidth, row * miniFrameHeight, miniFrameWidth, miniFrameHeight);
+      }
+    }
+  }
+
 
   updateFrameHighlight() {
     const gameWidth = this.scene.game.config.width - MAX_WIDTH_OFFSET;
@@ -136,21 +171,103 @@ class MiniSheet {
     const frameHeight = this.imageHeight / this.rows;
     const scaledFrameWidth = frameWidth * scale;
     const scaledFrameHeight = frameHeight * scale;
-    const highlightX = (this.currentFrame % this.cols) * scaledFrameWidth;
-    const highlightY = Math.floor(this.currentFrame / this.cols) * scaledFrameHeight;
+
+
+    let highlightX = (this.currentFrame % this.cols) * scaledFrameWidth;
+    let highlightY = Math.floor(this.currentFrame / this.cols) * scaledFrameHeight;
+
+    // Check if there are selected cells and the current frame is within them
+    if (this.selectedCells && this.selectedCells.length > 0) {
+      // Map the current animation frame to the corresponding grid frame index
+      const gridFrameIndex = this.selectedCells[this.currentFrame % this.selectedCells.length];
+
+      // Calculate the row and column in the grid for this frame
+      const row = Math.floor(gridFrameIndex / this.cols);
+      const col = gridFrameIndex % this.cols;
+
+      // Calculate the highlight position based on the grid cell
+      highlightX = col * scaledFrameWidth;
+      highlightY = row * scaledFrameHeight;
+
+    }
 
     this.frameHighlight.clear();
     this.frameHighlight.fillStyle(ACCENT_COLOR, 0.5); // Use the ACCENT_COLOR with 50% opacity
     this.frameHighlight.fillRect(highlightX, highlightY, scaledFrameWidth, scaledFrameHeight);
+
   }
-
-
 
   // Call this method to change the current frame
   setCurrentFrame(frameIndex) {
     this.currentFrame = frameIndex;
     this.updateFrameHighlight();
   }
+
+  getCellFromPointer(pointer) {
+    const scale = this.calculateScale();
+    const miniFrameWidth = (this.imageWidth / this.cols) * scale;
+    const miniFrameHeight = (this.imageHeight / this.rows) * scale;
+    const col = Math.floor((pointer.x - this.container.x) / miniFrameWidth);
+    const row = Math.floor((pointer.y - this.container.y) / miniFrameHeight);
+    return { col, row };
+  }
+
+  onDragStart(pointer) {
+    const cell = this.getCellFromPointer(pointer);
+
+    // Check if the cell is within the grid bounds
+    if (cell.col >= 0 && cell.col < this.cols && cell.row >= 0 && cell.row < this.rows) {
+      this.highlightsGraphics.clear();
+      this.isDragging = true;
+      this.selectionStartCell = cell;
+      this.selectionEndCell = cell;
+    } else {
+      // Pointer is outside the valid grid cells, do not start drag
+      this.isDragging = false;
+    }
+  }
+
+  onDragMove(pointer) {
+    if (!this.isDragging) return;
+
+    this.selectionEndCell = this.getCellFromPointer(pointer);
+    this.drawHighlights();
+  }
+
+  onDragEnd(pointer) {
+    if (!this.isDragging) return;
+
+    const endCell = this.getCellFromPointer(pointer);
+
+    // Check if the end cell is within the grid bounds
+    if (endCell.col >= 0 && endCell.col < this.cols && endCell.row >= 0 && endCell.row < this.rows) {
+      // Drag end is within a valid cell, proceed with selecting cells
+      this.selectionEndCell = endCell;
+
+      const minCol = Math.min(this.selectionStartCell.col, this.selectionEndCell.col);
+      const maxCol = Math.max(this.selectionStartCell.col, this.selectionEndCell.col);
+      const minRow = Math.min(this.selectionStartCell.row, this.selectionEndCell.row);
+      const maxRow = Math.max(this.selectionStartCell.row, this.selectionEndCell.row);
+
+      const selectedCells = [];
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          const cellNumber = row * this.cols + col;
+          selectedCells.push(cellNumber);
+        }
+      }
+      this.selectedCells = selectedCells;
+      this.scene.events.emit('cellsSelected', selectedCells);
+    } else {
+      // Drag end is outside valid cells, cancel the drag
+      this.highlightsGraphics.clear();
+      this.selectedCells = null;
+    }
+
+    this.isDragging = false;
+  }
+
+
 }
 
 export default MiniSheet;

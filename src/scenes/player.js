@@ -70,18 +70,18 @@ class Player {
     });
 
     this.input.keyboard.on('keydown-Y', function (event) {
-      if(!this.sprite) return
+      if (!this.sprite) return
       this.sprite.anims.yoyo = !this.sprite.anims.yoyo;
       this.events.emit('yoyo', this.sprite.anims.yoyo);
     }, this);
 
     this.input.keyboard.on('keydown-R', function (event) {
-      if(!this.sprite) return
+      if (!this.sprite) return
       this.sprite.anims.reverse()
       this.events.emit('reverse', this.sprite.anims.inReverse)
     }, this);
     this.input.keyboard.on('keydown-P', function (event) {
-      if(!this.sprite) return
+      if (!this.sprite) return
       if (this.sprite.anims.isPaused) {
         this.sprite.anims.resume();
       }
@@ -90,6 +90,10 @@ class Player {
       }
       this.events.emit('pause', this.sprite.anims.isPaused);
     }, this);
+
+    this.events.on('cellsSelected', (data) => {
+      this.playSelectedFrames(data)
+    })
   }
 
   createSprite(textureKey, imageWidth, imageHeight) {
@@ -145,21 +149,22 @@ class Player {
   }
 
   createAnimation(textureKey) {
-    const spritesheetKey = `spritesheet-${this.animationKeyCounter++}`;
+    const spritesheetKey = `spritesheet-${++this.animationKeyCounter}`;
     this.spritesheetKey = spritesheetKey
     // console.log('set this.spritesheetKey', this.spritesheetKey, this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
 
-    const animationKey = `animation-${this.animationKeyCounter++}`;
+    const animationKey = `animation-${++this.animationKeyCounter}`;
     const animation = this.anims.create({
       key: animationKey,
       frames: this.anims.generateFrameNumbers(spritesheetKey, { start: 0, end: this.numCols * this.numRows - 1 }),
       frameRate: this.frameRate,
       repeat: -1
     });
-
+    this.fullAnimationKey = animationKey
+    //console.log(this.anims.generateFrameNumbers(spritesheetKey, { start: 0, end: this.numCols * this.numRows - 1 }))
     // Create a sprite and play the animation
     const sprite = this.scene.add.sprite(0, 0, spritesheetKey);
     // Calculate scale factors to fit the game canvas
@@ -217,6 +222,33 @@ class Player {
 
     return sprite;
   }
+
+  playSelectedFrames(selectedCells) {
+    // const sprite = this.getSprite(); // Implement this method to get the sprite on which the animation should play
+    // const currentAnimationKey = sprite.anims.currentAnim.key;
+    const currentAnimationKey = `animation-${this.animationKeyCounter}`;
+    const currentAnimationFrames = this.scene.anims.get(this.fullAnimationKey).frames;
+
+    // Filter the frames to include only the selected ones
+    // const selectedFrames = currentAnimationFrames.filter(frame =>
+    //   selectedCells.includes(frame.index)
+    // );
+    const selectedFrames = currentAnimationFrames.filter(frame =>
+      selectedCells.includes(frame.index)
+    ).map(frame => ({ key: this.spritesheetKey, frame: frame.frame.name }));
+
+    // Create a new animation with these frames
+    const animationKey = `animation-${++this.animationKeyCounter}`;
+    const animation = this.scene.anims.create({
+      key: animationKey,
+      frames: selectedFrames,
+      frameRate: this.frameRate,
+      repeat: -1
+    });
+
+    this.sprite.play(animationKey)
+  }
+
 
   updateStorage() {
     // Retrieve the current data from localStorage
