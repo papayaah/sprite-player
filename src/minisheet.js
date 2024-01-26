@@ -1,7 +1,7 @@
-import { ACCENT_COLOR } from "./consts";
+import { ACCENT_COLOR, TEXT_COLOR } from "./consts";
 
-const MAX_WIDTH_OFFSET = 80
-const MAX_HEIGHT = 100
+const MAX_WIDTH_OFFSET = 150
+const MAX_HEIGHT = 300
 
 class MiniSheet {
   constructor(scene) {
@@ -23,7 +23,7 @@ class MiniSheet {
       }
     })
 
-    scene.scene.get('PlayerScene').events.on('currentAnimation', (animationData) => {
+    scene.scene.get('GameScene').events.on('currentAnimation', (animationData) => {
       this.setCurrentFrame(animationData.frameIndex - 1);
     })
 
@@ -80,27 +80,52 @@ class MiniSheet {
   }
 
   drawGrid() {
+    // Clear the existing grid graphics and text elements
     this.gridGraphics.clear();
+    if (this.gridTexts) {
+      this.gridTexts.forEach(text => text.destroy());
+    }
+    this.gridTexts = [];
 
-    const scale = this.calculateScale()
+    const scale = this.calculateScale();
+    let miniFrameWidth = (this.imageWidth / this.cols) * scale;
+    let miniFrameHeight = (this.imageHeight / this.rows) * scale;
 
-    let miniFrameWidth = (this.imageWidth / this.cols) * scale
-    let miniFrameHeight = (this.imageHeight / this.rows) * scale
+    let cellNumber = 0;
 
     for (let i = 0; i <= this.cols; i++) {
-        this.gridGraphics.lineBetween(
-            i * miniFrameWidth, 0,
-            i * miniFrameWidth, this.miniSheet.displayHeight
-        );
+      this.gridGraphics.lineBetween(
+        i * miniFrameWidth, 0,
+        i * miniFrameWidth, this.miniSheet.displayHeight
+      );
     }
 
     for (let j = 0; j <= this.rows; j++) {
-        this.gridGraphics.lineBetween(
-            0, j * miniFrameHeight,
-            this.miniSheet.displayWidth, j * miniFrameHeight
-        );
+      this.gridGraphics.lineBetween(
+        0, j * miniFrameHeight,
+        this.miniSheet.displayWidth, j * miniFrameHeight
+      );
+    }
+
+    // Add numbers to each cell
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        let centerX = (col + 0.6) * miniFrameWidth;
+        let centerY = (row + 0.4) * miniFrameHeight;
+
+        let cellText = this.scene.add.text(centerX, centerY, cellNumber.toString(), {
+          fontFamily: 'monogram',
+          fontSize: '14px',
+          color: `#${TEXT_COLOR.toString(16)}`,
+        })
+        cellText.setResolution(3)
+
+        this.gridTexts.push(cellText)
+        cellNumber++;
+      }
     }
   }
+
 
   updateFrameHighlight() {
     const gameWidth = this.scene.game.config.width - MAX_WIDTH_OFFSET;
@@ -117,7 +142,7 @@ class MiniSheet {
     this.frameHighlight.clear();
     this.frameHighlight.fillStyle(ACCENT_COLOR, 0.5); // Use the ACCENT_COLOR with 50% opacity
     this.frameHighlight.fillRect(highlightX, highlightY, scaledFrameWidth, scaledFrameHeight);
-}
+  }
 
 
 
