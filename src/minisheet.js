@@ -93,7 +93,9 @@ class MiniSheet {
     this.container.add(this.highlightsGraphics);
 
     // Add mouse event listeners
-    this.container.setInteractive();
+    let miniSheetWidth = (this.imageWidth) * scale
+    let miniSheetHeight = (this.imageHeight) * scale
+    this.container.setSize(miniSheetWidth, miniSheetHeight).setInteractive()
     this.scene.input.on('pointerdown', this.onDragStart, this);
     this.scene.input.on('pointermove', this.onDragMove, this);
     this.scene.input.on('pointerup', this.onDragEnd, this);

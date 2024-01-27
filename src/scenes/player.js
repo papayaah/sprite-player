@@ -232,17 +232,13 @@ class Player {
   playSelectedFrames(selectedCells) {
     const currentAnimationFrames = this.scene.anims.get(this.fullAnimationKey).frames;
 
-    // Filter the frames to include only the selected ones
-    // const selectedFrames = currentAnimationFrames.filter(frame =>
-    //   selectedCells.includes(frame.index)
-    // );
     const selectedFrames = currentAnimationFrames.filter(frame =>
-      selectedCells.includes(frame.index)
+      selectedCells.includes(frame.index - 1) // because animation frame starts from 0
     ).map(frame => ({ key: this.spritesheetKey, frame: frame.frame.name }));
 
     // Create a new animation with these frames
     const animationKey = `animation-${++this.animationKeyCounter}`;
-    const animation = this.scene.anims.create({
+    this.scene.anims.create({
       key: animationKey,
       frames: selectedFrames,
       frameRate: this.frameRate,
