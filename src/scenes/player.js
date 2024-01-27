@@ -73,6 +73,10 @@ class Player {
     this.scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (sliderData.label == 'Frame Rate') {
         this.frameRate = sliderData.value
+        if (this.selectedCells) {
+          this.playSelectedFrames(this.selectedCells)
+        }
+        return
       }
 
       if (sliderData.label == 'Cols') {
@@ -123,7 +127,6 @@ class Player {
   }
 
   createSprite(textureKey, imageWidth, imageHeight) {
-    console.time("createSprite")
     if (this.sprite) {
       this.sprite.destroy();
       this.sprite = null;
@@ -147,11 +150,9 @@ class Player {
         }
       }
     }
-    console.timeEnd("createSprite")
   }
 
   createAnimation(textureKey) {
-    console.log(`createAnimation: ${textureKey}`)
     if (!textureKey) return
 
     const spritesheetKey = `spritesheet-${++this.animationKeyCounter}`;
@@ -169,7 +170,6 @@ class Player {
       repeat: -1
     });
     this.fullAnimationKey = animationKey
-    //console.log(this.anims.generateFrameNumbers(spritesheetKey, { start: 0, end: this.numCols * this.numRows - 1 }))
     // Create a sprite and play the animation
     const sprite = this.scene.add.sprite(0, 0, spritesheetKey);
     // Calculate scale factors to fit the game canvas
@@ -182,9 +182,6 @@ class Player {
 
     // Set the sprite's scale
     sprite.setScale(scale);
-
-    // console.log(scale, sprite.width, scaleX, scaleY);
-    // console.log(this.cameras.main.centerX, this.cameras.main.centerY);
 
     // Set the sprite's scale
     if (this.spriteScale) {
@@ -229,9 +226,6 @@ class Player {
   }
 
   playSelectedFrames(selectedCells) {
-    // const sprite = this.getSprite(); // Implement this method to get the sprite on which the animation should play
-    // const currentAnimationKey = sprite.anims.currentAnim.key;
-    const currentAnimationKey = `animation-${this.animationKeyCounter}`;
     const currentAnimationFrames = this.scene.anims.get(this.fullAnimationKey).frames;
 
     // Filter the frames to include only the selected ones
@@ -251,7 +245,9 @@ class Player {
       repeat: -1
     });
 
+    this.currentAnimationKey = animationKey
     this.sprite.play(animationKey)
+    this.selectedCells = selectedCells
   }
 
 
