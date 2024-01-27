@@ -6,10 +6,11 @@ const MAX_HEIGHT = 250
 class MiniSheet {
   constructor(scene) {
     this.scene = scene
+    this.gridTexts = []
 
     scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (!this.gridGraphics) return
-
+      console.time('drawGridsliderChanged')
       if (sliderData.label == 'Cols') {
         this.cols = sliderData.value;
         this.drawGrid()
@@ -21,6 +22,7 @@ class MiniSheet {
         this.drawGrid()
         this.updateFrameHighlight()
       }
+      console.timeEnd('drawGridsliderChanged')
     })
 
     scene.scene.get('GameScene').events.on('currentAnimation', (animationData) => {
@@ -28,6 +30,7 @@ class MiniSheet {
     })
 
     scene.scene.get('GameScene').events.on('textureAdded', (data) => {
+      console.time("createMiniSheet")
       let { textureKey, storageKey } = data
       this.textureKey = textureKey
       this.storageKey = storageKey
@@ -39,6 +42,7 @@ class MiniSheet {
       this.imageWidth = existingData.imageWidth
       this.destroyExisting()
       this.createMiniSheet()
+      console.timeEnd("createMiniSheet")
     })
 
     scene.scene.get('GameScene').events.on('thumbSelected', () => {
@@ -98,51 +102,62 @@ class MiniSheet {
   }
 
   drawGrid() {
-    // Clear the existing grid graphics and text elements
+    // Clear the existing grid graphics
     this.gridGraphics.clear();
-    if (this.gridTexts) {
-      this.gridTexts.forEach(text => text.destroy());
-    }
-    this.gridTexts = [];
 
     const scale = this.calculateScale();
     let miniFrameWidth = (this.imageWidth / this.cols) * scale;
     let miniFrameHeight = (this.imageHeight / this.rows) * scale;
 
-    let cellNumber = 0;
-
+    // Batch line drawing operations
+    this.gridGraphics.beginPath();
     for (let i = 0; i <= this.cols; i++) {
-      this.gridGraphics.lineBetween(
-        i * miniFrameWidth, 0,
-        i * miniFrameWidth, this.miniSheet.displayHeight
-      );
+      let x = i * miniFrameWidth;
+      this.gridGraphics.moveTo(x, 0);
+      this.gridGraphics.lineTo(x, this.miniSheet.displayHeight);
     }
 
     for (let j = 0; j <= this.rows; j++) {
-      this.gridGraphics.lineBetween(
-        0, j * miniFrameHeight,
-        this.miniSheet.displayWidth, j * miniFrameHeight
-      );
+      let y = j * miniFrameHeight;
+      this.gridGraphics.moveTo(0, y);
+      this.gridGraphics.lineTo(this.miniSheet.displayWidth, y);
     }
+    this.gridGraphics.strokePath();
 
-    // Add numbers to each cell
+    // Reuse or create text objects
+    let cellNumber = 0;
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
         let centerX = (col + 0.6) * miniFrameWidth;
         let centerY = (row + 0.4) * miniFrameHeight;
 
-        let cellText = this.scene.add.text(centerX, centerY, cellNumber.toString(), {
-          fontFamily: 'monogram',
-          fontSize: '14px',
-          color: `#${TEXT_COLOR.toString(16)}`,
-        })
-        cellText.setResolution(3)
-
-        this.gridTexts.push(cellText)
+        let cellText;
+        if (this.gridTexts[cellNumber]) {
+          cellText = this.gridTexts[cellNumber];
+          cellText.setPosition(centerX, centerY);
+          cellText.setText(cellNumber.toString());
+        } else {
+          cellText = this.scene.add.text(centerX, centerY, cellNumber.toString(), {
+            fontFamily: 'monogram',
+            fontSize: '14px',
+            color: `#${TEXT_COLOR.toString(16)}`,
+          });
+          cellText.setResolution(3);
+          this.gridTexts.push(cellText);
+        }
         cellNumber++;
       }
     }
+
+    // Trim excess text objects if necessary
+    if (this.gridTexts.length > cellNumber) {
+      for (let i = cellNumber; i < this.gridTexts.length; i++) {
+        this.gridTexts[i].destroy();
+      }
+      this.gridTexts.length = cellNumber;
+    }
   }
+
 
   drawHighlights() {
     if (!this.isDragging) return;
@@ -163,6 +178,8 @@ class MiniSheet {
 
 
   updateFrameHighlight() {
+    if (!this.miniSheet) return
+
     const gameWidth = this.scene.game.config.width - MAX_WIDTH_OFFSET;
     const scaleByWidth = gameWidth / this.imageWidth;
     const scaleByHeight = MAX_HEIGHT / this.imageHeight;
