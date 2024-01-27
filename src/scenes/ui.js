@@ -17,8 +17,6 @@ class UiScene extends Phaser.Scene {
     if (!this.plugins.isActive('rexcheckboxplugin')) return
 
     this.scene.get('GameScene').events.on('textureAdded', (data) => {
-      console.time("uiTextureAdded")
-
       let { storageKey } = data
       this.storageKey = storageKey
       let existingData = localStorage.getItem(this.storageKey)
@@ -28,9 +26,7 @@ class UiScene extends Phaser.Scene {
 
       this.setSliderValue(this.colSlider, this.cols)
       this.setSliderValue(this.rowSlider, this.rows)
-
-      console.timeEnd("uiTextureAdded")
-    });
+    })
 
     this.createBackground()
     this.createUi()

@@ -10,7 +10,7 @@ class MiniSheet {
 
     scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (!this.gridGraphics) return
-      console.time('drawGridsliderChanged')
+
       if (sliderData.label == 'Cols') {
         this.cols = sliderData.value;
         this.drawGrid()
@@ -22,7 +22,6 @@ class MiniSheet {
         this.drawGrid()
         this.updateFrameHighlight()
       }
-      console.timeEnd('drawGridsliderChanged')
     })
 
     scene.scene.get('GameScene').events.on('currentAnimation', (animationData) => {
@@ -30,7 +29,7 @@ class MiniSheet {
     })
 
     scene.scene.get('GameScene').events.on('textureAdded', (data) => {
-      console.time("createMiniSheet")
+      // console.time("createMiniSheet")
       let { textureKey, storageKey } = data
       this.textureKey = textureKey
       this.storageKey = storageKey
@@ -42,7 +41,7 @@ class MiniSheet {
       this.imageWidth = existingData.imageWidth
       this.destroyExisting()
       this.createMiniSheet()
-      console.timeEnd("createMiniSheet")
+      // console.timeEnd("createMiniSheet")
     })
 
     scene.scene.get('GameScene').events.on('thumbSelected', () => {

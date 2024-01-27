@@ -70,13 +70,17 @@ class Player {
       this.createSprite(this.textureKey, this.imageWidth, this.imageHeight)
     })
 
+    this.scene.scene.get('GameScene').events.on('thumbSelected', () => {
+      this.selectedCells = null
+    })
+
     this.scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (sliderData.label == 'Frame Rate') {
         this.frameRate = sliderData.value
         if (this.selectedCells) {
           this.playSelectedFrames(this.selectedCells)
+          return
         }
-        return
       }
 
       if (sliderData.label == 'Cols') {

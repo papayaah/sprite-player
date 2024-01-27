@@ -98,7 +98,6 @@ class GameScene extends Phaser.Scene {
   }
 
   playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
-    console.time("playSpritesheet")
     this.bubbleText.destroy()
     this.blacksmith.destroy()
 
@@ -114,9 +113,6 @@ class GameScene extends Phaser.Scene {
         })
       }
       this.events.emit('textureAdded', { textureKey, storageKey })
-      console.timeEnd("playSpritesheet")
-
-      //this.player.createSprite(textureKey, imageWidth, imageHeight)
     })
   }
 
