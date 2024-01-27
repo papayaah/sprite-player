@@ -98,11 +98,12 @@ class GameScene extends Phaser.Scene {
   }
 
   playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
+    console.time("playSpritesheet")
     this.bubbleText.destroy()
     this.blacksmith.destroy()
 
-    const textureKey = `texture-${Date.now()}`;
-    this.textures.addBase64(textureKey, imageData);
+    const textureKey = `texture-${Date.now()}`
+    this.textures.addBase64(textureKey, imageData)
     this.textures.once('addtexture', () => {
       if (!storageKey) {
         storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight)
@@ -112,7 +113,8 @@ class GameScene extends Phaser.Scene {
           }, 500)
         })
       }
-      this.events.emit('textureAdded', { textureKey, storageKey });
+      this.events.emit('textureAdded', { textureKey, storageKey })
+      console.timeEnd("playSpritesheet")
 
       //this.player.createSprite(textureKey, imageWidth, imageHeight)
     })

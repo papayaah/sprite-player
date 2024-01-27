@@ -1,3 +1,4 @@
+import BackgroundChooser from "../backgroundChooser";
 import { ACCENT_COLOR, BACKGROUND_COLOR, FONT_SIZE, PRIMARY_COLOR, TEXT_COLOR, UI_HEIGHT } from "../consts";
 import {getSizerTotalWidth, hexToWebColor} from './utils'
 
@@ -16,6 +17,8 @@ class UiScene extends Phaser.Scene {
     if (!this.plugins.isActive('rexcheckboxplugin')) return
 
     this.scene.get('GameScene').events.on('textureAdded', (data) => {
+      console.time("uiTextureAdded")
+
       let { storageKey } = data
       this.storageKey = storageKey
       let existingData = localStorage.getItem(this.storageKey)
@@ -25,6 +28,8 @@ class UiScene extends Phaser.Scene {
 
       this.setSliderValue(this.colSlider, this.cols)
       this.setSliderValue(this.rowSlider, this.rows)
+
+      console.timeEnd("uiTextureAdded")
     });
 
     this.createBackground()
@@ -109,16 +114,22 @@ class UiScene extends Phaser.Scene {
     const box = this.rexUI.add.sizer({
       orientation: 'x',
       space: {
+        top: 30,
         left: 10,
         bottom: 10,
       },
     })
-
     box.add(this.createCheckboxWithLabel('<R>everse', false))
     box.add(this.createCheckboxWithLabel('<Y>oyo', false))
     box.add(this.createCheckboxWithLabel('<P>ause', false))
-    box.setPosition(0, 0).layout()
-    sizer.add(box).layout()
+
+    const ybox = this.rexUI.add.sizer({
+      orientation: 'y',
+    })
+    ybox.add(new BackgroundChooser(this, 0, 0))
+    ybox.add(box).layout()
+
+    sizer.add(ybox).layout()
   }
 
   createSliderWithLabel(sizer, labelText, initialValue, minValue, maxValue, useDecimals) {

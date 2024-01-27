@@ -14,10 +14,6 @@ class Player {
     // default values
     this.imageWidth = null
     this.imageHeight = null
-    this.numCols = 4
-    this.numRows = 4
-    this.frameRate = 10
-    this.spriteScale = null
     this.textureKey = null
     this.posX = null
     this.posY = null
@@ -25,6 +21,11 @@ class Player {
     this.spritesheetKey = null
     this.debounceTimer = null
 
+    // settings
+    this.numCols = 4
+    this.numRows = 4
+    this.frameRate = 10
+    this.spriteScale = null
   }
 
   create() {
@@ -66,8 +67,33 @@ class Player {
       this.imageHeight = existingData.imageHeight
       this.imageWidth = existingData.imageWidth
 
-      this.createSprite(textureKey, this.imageWidth, this.imageHeight)
-    });
+      this.createSprite(this.textureKey, this.imageWidth, this.imageHeight)
+    })
+
+    this.scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
+      if (sliderData.label == 'Frame Rate') {
+        this.frameRate = sliderData.value
+      }
+
+      if (sliderData.label == 'Cols') {
+        this.numCols = sliderData.value;
+      }
+
+      if (sliderData.label == 'Rows') {
+        this.numRows = sliderData.value;
+      }
+
+      if (sliderData.label == 'Scale') {
+        if (this.sprite) {
+          this.sprite.setScale(sliderData.value)
+        }
+        this.spriteScale = sliderData.value
+      } else {
+        this.createSprite(this.textureKey, this.imageWidth, this.imageHeight)
+      }
+
+      // console.log(sliderData)
+    }, this);
 
     this.input.keyboard.on('keydown-Y', function (event) {
       if (!this.sprite) return
@@ -97,6 +123,7 @@ class Player {
   }
 
   createSprite(textureKey, imageWidth, imageHeight) {
+    console.time("createSprite")
     if (this.sprite) {
       this.sprite.destroy();
       this.sprite = null;
@@ -120,35 +147,13 @@ class Player {
         }
       }
     }
-
-    this.scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
-      if (sliderData.label == 'Frame Rate') {
-        this.frameRate = sliderData.value
-      }
-
-      if (sliderData.label == 'Cols') {
-        this.numCols = sliderData.value;
-      }
-
-      if (sliderData.label == 'Rows') {
-        this.numRows = sliderData.value;
-      }
-
-      if (sliderData.label == 'Scale') {
-        this.sprite.setScale(sliderData.value)
-        this.spriteScale = sliderData.value
-      } else {
-        if (this.sprite) {
-          this.sprite.destroy();
-        }
-        this.sprite = this.createAnimation(this.textureKey)
-      }
-
-      // console.log(sliderData)
-    }, this);
+    console.timeEnd("createSprite")
   }
 
   createAnimation(textureKey) {
+    console.log(`createAnimation: ${textureKey}`)
+    if (!textureKey) return
+
     const spritesheetKey = `spritesheet-${++this.animationKeyCounter}`;
     this.spritesheetKey = spritesheetKey
     // console.log('set this.spritesheetKey', this.spritesheetKey, this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
