@@ -6,17 +6,19 @@ class BackgroundChooser extends Phaser.GameObjects.Container {
     this.selectedColor = '#0d2b45'; // Default to the first color
 
     this.createColorStrip()
+    this.setSize(200, 20); // Explicitly set size for sizers
     scene.add.existing(this)
   }
 
   createColorStrip() {
-    const stripWidth = 50; // Width of each color strip
+    const stripWidth = 25; // Width of each color strip
     const stripHeight = 20; // Height of the color strip
+    const totalHalfWidth = (this.colors.length * stripWidth) / 2;
 
     this.colors.forEach((color, index) => {
       let colorBox = this.scene.add.rectangle(
-        index * stripWidth, 0, stripWidth, stripHeight, Phaser.Display.Color.HexStringToColor(color).color
-      ).setOrigin(2.8, 0).setInteractive()
+        (index * stripWidth) + (stripWidth / 2), 0, stripWidth, stripHeight, Phaser.Display.Color.HexStringToColor(color).color
+      ).setInteractive()
 
       colorBox.on('pointerdown', () => {
         this.selectedColor = color;

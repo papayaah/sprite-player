@@ -1,4 +1,3 @@
-import BackgroundChooser from "../backgroundChooser";
 import { ACCENT_COLOR, BACKGROUND_COLOR, FONT_SIZE, PRIMARY_COLOR, TEXT_COLOR, UI_HEIGHT } from "../consts";
 import {getSizerTotalWidth, hexToWebColor} from './utils'
 
@@ -10,11 +9,10 @@ class UiScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.plugin('rexcheckboxplugin', 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexcheckboxplugin.min.js', true);
   }
 
   create() {
-    if (!this.plugins.isActive('rexcheckboxplugin')) return
+    if (!this.plugins.isActive('rexCheckbox')) return
 
     this.scene.get('GameScene').events.on('textureAdded', (data) => {
       let { storageKey } = data
@@ -27,6 +25,16 @@ class UiScene extends Phaser.Scene {
       this.setSliderValue(this.colSlider, this.cols)
       this.setSliderValue(this.rowSlider, this.rows)
     })
+
+    this.scene.get('GameScene').events.on('syncScaleSliders', (data) => {
+      this.setSliderValue(this.scaleSlider, data.value)
+      this.setSliderValue(this.scaleXSlider, data.value)
+      this.setSliderValue(this.scaleYSlider, data.value)
+    })
+
+    this.scene.get('GameScene').events.on('updateSpriteInfo', (data) => {
+      this.infoText.setText(`Frames: ${data.totalFrames} | W: ${data.frameWidth} | H: ${data.frameHeight}`);
+    });
 
     this.createBackground()
     this.createUi()
@@ -64,7 +72,7 @@ class UiScene extends Phaser.Scene {
       background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 20, PRIMARY_COLOR),
       fontSize: FONT_SIZE,
       text: this.add.text(0, 0, 'Full Screen', {
-        fontFamily: 'monogram',
+        fontFamily: 'm5x7',
         fontSize: FONT_SIZE,
         color: `#${TEXT_COLOR.toString(16)}`,
       }),
@@ -85,57 +93,112 @@ class UiScene extends Phaser.Scene {
   }
 
   createUi() {
-    const sizer = this.rexUI.add.sizer({
+    // ROOT VERTICAL SIZER
+    const rootSizer = this.rexUI.add.sizer({
       x: 20,
-      y: this.game.config.height - 80,
+      y: this.game.config.height - UI_HEIGHT + 15,
+      orientation: 'y',
+      space: { item: 15 }
+    });
+
+    // HEADER: Technical Info
+    this.infoText = this.add.text(0, 0, 'Frames: - | W: - | H: -', {
+      fontFamily: 'monogram',
+      fontSize: FONT_SIZE,
+      color: hexToWebColor(TEXT_COLOR),
+      backgroundColor: '#00000066',
+      padding: { x: 5, y: 2 }
+    });
+    rootSizer.add(this.infoText, { align: 'left', padding: { left: 0 } });
+
+    // BODY: 3-Column Layout
+    const bodySizer = this.rexUI.add.sizer({
       orientation: 'x',
+      space: { item: 40 }
+    });
+
+    // COLUMN 1: Parameter Sliders (Grid)
+    const sliderGrid = this.rexUI.add.gridSizer({
+      column: 4,
+      row: 2,
+      columnProportions: 0,
+      rowProportions: 0,
       space: {
-        item: 5,
+        column: 15,
+        row: 5,
       },
     });
 
-    // Add the 'Scale' slider and label to the sizer
-    this.createSliderWithLabel(sizer, 'Scale', 3, 0.25, 10, true); // Initial value for 'Scale' slider
-    this.colSlider = this.createSliderWithLabel(sizer, 'Cols', this.cols, 1, 30); // Initial value for 'Scale' slider
-    this.rowSlider = this.createSliderWithLabel(sizer, 'Rows', this.rows, 1, 30); // Initial value for 'Scale' slider
-    // Add some vertical space between the sliders
-    sizer.addSpace(20);
+    // Row 0
+    this.scaleSlider = this.createSliderWithLabel(sliderGrid, 'Scale', 3, 0.1, 10, true);
+    this.scaleXSlider = this.createSliderWithLabel(sliderGrid, 'Scale X', 3, 0.1, 10, true);
+    this.scaleYSlider = this.createSliderWithLabel(sliderGrid, 'Scale Y', 3, 0.1, 10, true);
+    this.createSliderWithLabel(sliderGrid, 'Rotation', 0, 0, 360);
 
-    // Add the 'Frame Rate' slider and label to the sizer
-    this.createSliderWithLabel(sizer, 'Frame Rate', 10, 0, 120);
+    // Row 1
+    this.colSlider = this.createSliderWithLabel(sliderGrid, 'Cols', this.cols, 1, 60);
+    this.rowSlider = this.createSliderWithLabel(sliderGrid, 'Rows', this.rows, 1, 30);
+    this.createSliderWithLabel(sliderGrid, 'Frame Rate', 10, 0, 120);
 
-    // Layout the sizer
-    sizer.setOrigin(0, 0).layout();
+    bodySizer.add(sliderGrid, { align: 'top' });
 
-    const box = this.rexUI.add.sizer({
-      orientation: 'x',
-      space: {
-        top: 30,
-        left: 10,
-        bottom: 10,
-      },
-    })
-    box.add(this.createCheckboxWithLabel('<R>everse', false))
-    box.add(this.createCheckboxWithLabel('<Y>oyo', false))
-    box.add(this.createCheckboxWithLabel('<P>ause', false))
-
-    const ybox = this.rexUI.add.sizer({
+    // COLUMN 2: Animation Controls (Vertical Checkboxes)
+    const checkboxCol = this.rexUI.add.sizer({
       orientation: 'y',
-    })
-    ybox.add(new BackgroundChooser(this, 0, 0))
-    ybox.add(box).layout()
+      space: { item: 10 }
+    });
+    checkboxCol.add(this.createCheckboxWithLabel('<R>everse', false), { align: 'left' });
+    checkboxCol.add(this.createCheckboxWithLabel('<Y>oyo', false), { align: 'left' });
+    checkboxCol.add(this.createCheckboxWithLabel('<P>ause', false), { align: 'left' });
 
-    sizer.add(ybox).layout()
+    bodySizer.add(checkboxCol, { align: 'top' });
+
+    // COLUMN 3: Visuals (BG Picker)
+    const visualsCol = this.rexUI.add.sizer({
+      orientation: 'y',
+      space: { item: 10 }
+    });
+
+    const bgLabel = this.add.text(0, 0, 'BG Color Picker:', {
+      fontFamily: 'monogram',
+      fontSize: FONT_SIZE,
+      color: hexToWebColor(TEXT_COLOR)
+    });
+    visualsCol.add(bgLabel, { align: 'left' });
+    visualsCol.add(this.createBackgroundPicker(), { align: 'left' });
+
+    bodySizer.add(visualsCol, { align: 'top' });
+
+    rootSizer.add(bodySizer);
+    rootSizer.setOrigin(0, 0).layout();
+  }
+
+  createBackgroundPicker() {
+    const colors = ['#0d2b45', '#203c56', '#544e68', '#8d697a', '#d08159', '#ffaa5e', '#ffd4a3', '#ffecd6'];
+    const pickerSizer = this.rexUI.add.sizer({
+      orientation: 'x',
+      space: { item: 0 }
+    });
+
+    colors.forEach(color => {
+      const rect = this.add.rectangle(0, 0, 25, 20, Phaser.Display.Color.HexStringToColor(color).color)
+        .setInteractive()
+        .on('pointerdown', () => {
+          this.scene.get('GameScene').cameras.main.setBackgroundColor(color);
+        });
+      pickerSizer.add(rect);
+    });
+
+    return pickerSizer;
   }
 
   createSliderWithLabel(sizer, labelText, initialValue, minValue, maxValue, useDecimals) {
-    const baseSliderLength = 50; // Base length for the slider
-    const sliderLength = baseSliderLength + maxValue / 2; // Scale slider length based on maxValue
+    const sliderWidth = 80; // Fixed width for all sliders
 
     const box = this.rexUI.add.sizer({
       orientation: 'y',
       space: {
-        bottom: 5,
+        bottom: 2,
       },
     });
     const label = this.add.text(0, 0, labelText, {
@@ -151,10 +214,10 @@ class UiScene extends Phaser.Scene {
     });
 
     const slider = this.rexUI.add.slider({
-      width: sliderLength,
-      height: 20,
-      track: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, PRIMARY_COLOR),
-      thumb: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, ACCENT_COLOR),
+      width: sliderWidth,
+      height: 12,
+      track: this.rexUI.add.roundRectangle(0, 0, 0, 0, 6, PRIMARY_COLOR),
+      thumb: this.rexUI.add.roundRectangle(0, 0, 0, 0, 6, ACCENT_COLOR),
       value: (initialValue - minValue) / (maxValue - minValue),
       easeValue: { duration: 250 },
       valuechangeCallback: function (value) {
@@ -186,6 +249,7 @@ class UiScene extends Phaser.Scene {
 
   setSliderValue(slider, value)
   {
+    if (!slider) return
     const minValue = slider.minValue
     const maxValue = slider.maxValue
     value = (value - minValue) / (maxValue - minValue)
@@ -197,7 +261,7 @@ class UiScene extends Phaser.Scene {
       orientation: 'x',
       space: {
         right: 5,
-        item: 5
+        item: 3
       },
     });
 
@@ -207,11 +271,16 @@ class UiScene extends Phaser.Scene {
       color: hexToWebColor(TEXT_COLOR)
     })
 
-    var checkbox = this.add.rexCheckbox(0, 0, 20, 20, {
+    var checkbox = this.add.rexCheckbox(0, 0, 14, 14, {
       color: PRIMARY_COLOR,
       circleBox: true,
       animationDuration: 200
     })
+
+    checkbox.on('valuechange', (value) => {
+      this.scene.get('GameScene').events.emit(`UI_toggle_${labelText}`, value);
+    });
+
     box.add(label)
     box.add(checkbox)
     box.layout()
@@ -235,28 +304,6 @@ class UiScene extends Phaser.Scene {
 
 
     return box
-
-    // Create the checkbox
-    // const checkbox = this.rexUI.add.checkBox({
-    //     x: x + 40,
-    //     y: y,
-    //     background: this.rexUI.add.roundRectangle(0, 0, 20, 20, 10, 0xCCCCCC),
-    //     icon: this.rexUI.add.roundRectangle(0, 0, 10, 10, 5, 0xFFFFFF),
-    //     checked: initialValue,
-    //     space: {
-    //         left: 10,
-    //         right: 10,
-    //         top: 10,
-    //         bottom: 10,
-    //         icon: 10
-    //     }
-    // }).setOrigin(0.5, 0.5).layout();
-
-    // // Add logic here to handle the checkbox change event, if needed
-    // checkbox.on('changed', (checkbox, value) => {
-    //     console.log(`${labelText} Checkbox: ${value}`);
-    //     // Additional logic to handle flip X or Y
-    // });
   }
 
 }

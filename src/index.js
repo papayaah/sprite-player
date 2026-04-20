@@ -3,12 +3,13 @@ import backgroundImg from './assets/sewer.png'
 import portraitImg from './assets/talking.png'
 import Dropzone from "dropzone";
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin';
+import CheckboxPlugin from 'phaser3-rex-plugins/plugins/checkbox-plugin.js';
 import { Pane } from 'tweakpane';
 
 import Player from './scenes/player.js';
 import UiScene from './scenes/ui.js';
 
-import { DEBUG } from './consts.js';
+import { DEBUG, MAX_THUMBS } from './consts.js';
 import MiniSheet from './minisheet.js';
 import BubbleText from './bubbleText.js';
 import AnimatedSprite from './animatedSprite.js';
@@ -24,12 +25,14 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    /*
     if (DEBUG) {
       this.load.plugin('PhaserSceneWatcherPlugin', 'https://cdn.jsdelivr.net/npm/phaser-plugin-scene-watcher@6.0.0/dist/phaser-plugin-scene-watcher.umd.js', false);
 
       this.pane = new Pane();
       this.pane.containerElem_.style.width = '320px';
     }
+    */
 
     this.load.image('portrait', portraitImg);
     this.load.image('background', backgroundImg);
@@ -74,11 +77,7 @@ class GameScene extends Phaser.Scene {
     }, this)
 
     this.events.on('storageItemUpdated', (storageKey) => {
-      this.thumbs.reload(()=>{
-        setTimeout(() => {
-          this.thumbs.create()
-        }, 50)
-      })
+      this.thumbs.reload(() => this.thumbs.create())
     })
   }
 
@@ -106,11 +105,8 @@ class GameScene extends Phaser.Scene {
     this.textures.once('addtexture', () => {
       if (!storageKey) {
         storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight)
-        this.thumbs.reload(()=>{
-          setTimeout(() => {
-            this.thumbs.create()
-          }, 500)
-        })
+        this.thumbs.activeKey = storageKey
+        this.thumbs.reload(() => this.thumbs.create())
       }
       this.events.emit('textureAdded', { textureKey, storageKey })
     })
@@ -123,8 +119,8 @@ class GameScene extends Phaser.Scene {
       base64: this.textures.getBase64(textureKey),
       imageWidth,
       imageHeight,
-      numCols: 4,
-      numRows: 4,
+      numCols: this.player.numCols,
+      numRows: this.player.numRows,
       frame: this.textures.getBase64(spritesheetKey, 0),
     }
     return this.saveNewFrame(JSON.stringify(savedImage));
@@ -140,8 +136,7 @@ class GameScene extends Phaser.Scene {
     // console.log(`Updated data for ${frameKey}`, JSON.parse(frameData))
     localStorage.setItem(frameKey, frameData)
 
-    // Update the index for the next frame, wrapping back to 1 after 10
-    currentFrameIndex = currentFrameIndex >= 10 ? 1 : currentFrameIndex + 1
+    currentFrameIndex = currentFrameIndex >= MAX_THUMBS ? 1 : currentFrameIndex + 1
 
     localStorage.setItem('currentFrameIndex', currentFrameIndex.toString())
     return frameKey
@@ -187,6 +182,11 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
   },
   plugins: {
+    global: [{
+      key: 'rexCheckbox',
+      plugin: CheckboxPlugin,
+      start: true
+    }],
     scene: [{
       key: 'rexUI',
       plugin: RexUIPlugin,

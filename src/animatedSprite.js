@@ -1,10 +1,8 @@
 class AnimatedSprite extends Phaser.GameObjects.Sprite {
   constructor(scene, x, y, textureKey) {
-    super(scene, x, y)
+    // Pass a default texture key if none provided to ensure proper initialization
+    super(scene, x, y, textureKey || '__DEFAULT')
 
-    const frameWidth = 32
-    const frameHeight = 32
-    // this.textureKey = 'blacksmith'
     this.spritesheetKey = 'blacksmith'
     this.startFrame = 1
     this.endFrame = 10
@@ -14,20 +12,28 @@ class AnimatedSprite extends Phaser.GameObjects.Sprite {
 
     this.scene = scene;
 
-    this.scene.load.spritesheet(this.spritesheetKey, 'assets/bored_01.png', { frameWidth: 32, frameHeight: 32 })
+    // Load the spritesheet if it hasn't been loaded yet
+    if (!this.scene.textures.exists(this.spritesheetKey)) {
+        this.scene.load.spritesheet(this.spritesheetKey, 'assets/bored_01.png', { frameWidth: 32, frameHeight: 32 })
+    }
   }
 
   initialize() {
-    this.scene.anims.create({
-      key: 'walk',
-      frames: this.anims.generateFrameNumbers(this.spritesheetKey),
-      frameRate: 10,
-      repeat: -1,
-    })
+    // Check if the animation already exists to avoid warnings/errors
+    if (!this.scene.anims.exists('walk')) {
+      this.scene.anims.create({
+        key: 'walk',
+        frames: this.scene.anims.generateFrameNumbers(this.spritesheetKey),
+        frameRate: 10,
+        repeat: -1,
+      })
+    }
 
-    // const sprite = this.scene.add.sprite(200, 300, 'blacksmith').setScale(10)
     this.setScale(10)
-    this.play('walk')
+    // Only play if the texture is loaded and animation exists
+    if (this.scene.textures.exists(this.spritesheetKey)) {
+        this.play('walk')
+    }
   }
 }
 

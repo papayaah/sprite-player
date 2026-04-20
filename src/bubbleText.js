@@ -1,6 +1,22 @@
 import { ACCENT_COLOR, BACKGROUND_COLOR, FONT_SIZE, TEXT_COLOR } from "./consts";
+import { hexToWebColor } from "./scenes/utils";
 
-const content = `Well, hello! Welcome and please stay. Drag and drop spritesheet and use the settings to adjust.`;
+const MESSAGES = [
+  `Welcome, brave coder! Drop a spritesheet and watch the magic happen.`,
+  `Hey there! Got sprites? Let’s make them dance.`,
+  `Drop it like it’s hot! Spritesheet incoming?`,
+  `Time to unleash your sprite‑power!`,
+  `Ready, set, sprite! Drag a sheet and enjoy.`,
+  `Sprite‑tastic adventures await – just drop a file!`,
+  `Your spritesheet called – it wants to be animated.`,
+  `Give me a spritesheet and I’ll give you a show.`,
+  `Let’s turn those pixels into fun – drop a sheet!`,
+  `Prepare for sprite‑splendor – drag and drop now!`
+];
+
+function getRandomMessage() {
+  return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+}
 
 class BubbleText {
   constructor(scene) {
@@ -11,11 +27,14 @@ class BubbleText {
     this.textBox = createTextBox(this.scene, 220, 150, {
       wrapWidth: 500,
     })
-      .start(content, 10)
+      .start(getRandomMessage(), 10)
   }
 
   destroy() {
-    this.textBox.destroy()
+    if (this.textBox) {
+      this.textBox.destroy()
+      this.textBox = null
+    }
   }
 }
 
@@ -38,8 +57,8 @@ var createTextBox = function (scene, x, y, config) {
     // icon: scene.rexUI.add.roundRectangle(0, 0, 2, 2, 20, ACCENT_COLOR),
     icon: scene.add.sprite(0, 0, 'portrait'),
 
-    // text: getBuiltInText(scene, wrapWidth, fixedWidth, fixedHeight),
-    text: getBBcodeText(scene, wrapWidth, fixedWidth, fixedHeight),
+    text: getBuiltInText(scene, wrapWidth, fixedWidth, fixedHeight),
+    // text: getBBcodeText(scene, wrapWidth, fixedWidth, fixedHeight),
 
     action: scene.add.image(0, 0, 'nextPage').setTint(ACCENT_COLOR).setVisible(false),
 
@@ -89,7 +108,9 @@ var createTextBox = function (scene, x, y, config) {
 
 var getBuiltInText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
   return scene.add.text(0, 0, '', {
-    fontSize: '24px',
+    fontSize: '48px',
+    fontFamily: 'm5x7',
+    color: hexToWebColor(TEXT_COLOR),
     wordWrap: {
       width: wrapWidth
     },
@@ -103,8 +124,8 @@ var getBBcodeText = function (scene, wrapWidth, fixedWidth, fixedHeight) {
     color: TEXT_COLOR,
     fixedWidth: fixedWidth,
     fixedHeight: fixedHeight,
-    fontFamily: 'monogram',
-    fontSize: '40px',
+    fontFamily: 'm5x7',
+    fontSize: '24px',
     wrap: {
       mode: 'word',
       width: wrapWidth

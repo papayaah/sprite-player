@@ -64,6 +64,7 @@ module.exports = {
     new CopyPlugin({
       patterns: [
           { from: 'public/assets', to: 'assets' },
+          { from: 'public/fonts', to: 'fonts' },
       ],
     }),
   ]

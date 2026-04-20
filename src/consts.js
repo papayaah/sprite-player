@@ -5,7 +5,8 @@ export const ACCENT_COLOR = 0xf9a875
 
 export const DEBUG = false
 
-export const TEXT_SIZE = 24
-export const FONT_SIZE = '24px'
+export const TEXT_SIZE = 14
+export const FONT_SIZE = '16px'
 
-export const UI_HEIGHT = 100
+export const UI_HEIGHT = 160
+export const MAX_THUMBS = 20

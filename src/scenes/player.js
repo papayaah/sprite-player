@@ -25,7 +25,9 @@ class Player {
     this.numCols = 4
     this.numRows = 4
     this.frameRate = 10
-    this.spriteScale = null
+    this.spriteScaleX = null
+    this.spriteScaleY = null
+    this.spriteAngle = 0
   }
 
   create() {
@@ -95,7 +97,24 @@ class Player {
         if (this.sprite) {
           this.sprite.setScale(sliderData.value)
         }
-        this.spriteScale = sliderData.value
+        this.spriteScaleX = sliderData.value
+        this.spriteScaleY = sliderData.value
+        this.scene.events.emit('syncScaleSliders', { value: sliderData.value })
+      } else if (sliderData.label == 'Scale X') {
+        if (this.sprite) {
+          this.sprite.setScale(sliderData.value, this.spriteScaleY || sliderData.value)
+        }
+        this.spriteScaleX = sliderData.value
+      } else if (sliderData.label == 'Scale Y') {
+        if (this.sprite) {
+          this.sprite.setScale(this.spriteScaleX || sliderData.value, sliderData.value)
+        }
+        this.spriteScaleY = sliderData.value
+      } else if (sliderData.label == 'Rotation') {
+        if (this.sprite) {
+          this.sprite.setAngle(sliderData.value)
+        }
+        this.spriteAngle = sliderData.value
       } else {
         this.createSprite(this.textureKey, this.imageWidth, this.imageHeight)
       }
@@ -103,31 +122,67 @@ class Player {
       // console.log(sliderData)
     }, this);
 
-    this.input.keyboard.on('keydown-Y', function (event) {
-      if (!this.sprite) return
-      this.sprite.anims.yoyo = !this.sprite.anims.yoyo;
-      this.events.emit('yoyo', this.sprite.anims.yoyo);
-    }, this);
+    this.input.keyboard.on('keydown-Y', () => this.toggleYoyo(), this);
+    this.input.keyboard.on('keydown-R', () => this.toggleReverse(), this);
+    this.input.keyboard.on('keydown-P', () => this.togglePause(), this);
 
-    this.input.keyboard.on('keydown-R', function (event) {
-      if (!this.sprite) return
-      this.sprite.anims.reverse()
-      this.events.emit('reverse', this.sprite.anims.inReverse)
-    }, this);
-    this.input.keyboard.on('keydown-P', function (event) {
-      if (!this.sprite) return
-      if (this.sprite.anims.isPaused) {
-        this.sprite.anims.resume();
-      }
-      else {
-        this.sprite.anims.pause();
-      }
-      this.events.emit('pause', this.sprite.anims.isPaused);
-    }, this);
+    this.scene.events.on('UI_toggle_<Y>oyo', (value) => {
+      if (!this.sprite) return;
+      if (this.sprite.anims.yoyo !== value) this.toggleYoyo();
+    });
+    this.scene.events.on('UI_toggle_<R>everse', (value) => {
+      if (!this.sprite) return;
+      if (this.sprite.anims.inReverse !== value) this.toggleReverse();
+    });
+    this.scene.events.on('UI_toggle_<P>ause', (value) => {
+      if (!this.sprite) return;
+      if (this.sprite.anims.isPaused !== value) this.togglePause();
+    });
 
     this.events.on('cellsSelected', (data) => {
       this.playSelectedFrames(data)
     })
+
+    // Mouse wheel scaling logic
+    this.scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+      if (!this.sprite) return;
+
+      const scaleStep = 0.2; // Optimized for faster scaling
+      const direction = deltaY > 0 ? -1 : 1; // Scroll Down = shrink, Scroll Up = grow
+      let newScale = (this.spriteScaleX || 1) + (scaleStep * direction);
+
+      // Clamp the scale to a reasonable range
+      newScale = Math.max(0.1, Math.min(newScale, 10));
+
+      this.spriteScaleX = newScale;
+      this.spriteScaleY = newScale;
+      this.sprite.setScale(newScale);
+
+      // Notify UI to sync sliders
+      this.scene.events.emit('syncScaleSliders', { value: newScale });
+    });
+  }
+
+  toggleYoyo() {
+    if (!this.sprite) return;
+    this.sprite.anims.yoyo = !this.sprite.anims.yoyo;
+    this.events.emit('yoyo', this.sprite.anims.yoyo);
+  }
+
+  toggleReverse() {
+    if (!this.sprite) return;
+    this.sprite.anims.reverse();
+    this.events.emit('reverse', this.sprite.anims.inReverse);
+  }
+
+  togglePause() {
+    if (!this.sprite) return;
+    if (this.sprite.anims.isPaused) {
+      this.sprite.anims.resume();
+    } else {
+      this.sprite.anims.pause();
+    }
+    this.events.emit('pause', this.sprite.anims.isPaused);
   }
 
   createSprite(textureKey, imageWidth, imageHeight) {
@@ -164,6 +219,14 @@ class Player {
     // console.log('set this.spritesheetKey', this.spritesheetKey, this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
+    let totalFrames = this.numCols * this.numRows;
+
+    this.scene.events.emit('updateSpriteInfo', {
+      frameWidth: Math.round(frameWidth),
+      frameHeight: Math.round(frameHeight),
+      totalFrames: totalFrames
+    });
+
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
 
     const animationKey = `animation-${++this.animationKeyCounter}`;
@@ -179,26 +242,20 @@ class Player {
     // Calculate scale factors to fit the game canvas
     // const scaleX = game.config.width / sprite.width;
     // const scaleY = game.config.height / sprite.height;
-    // const scale = Math.max(scaleX, scaleY); // Use the larger scale factor to maintain aspect ratio
+    // const scale = Math.max(scaleX, scaleY)
 
     const maxHeight = 300;
     const scale = Math.min(maxHeight / sprite.height, game.config.width / sprite.width);
 
     // Set the sprite's scale
-    sprite.setScale(scale);
-
-    // Set the sprite's scale
-    if (this.spriteScale) {
-      //sprite.setScale(this.spriteScale)
+    if (this.spriteScaleX && this.spriteScaleY) {
+      sprite.setScale(this.spriteScaleX, this.spriteScaleY);
     } else {
-      //sprite.setScale(scale / 2)
-      this.spriteScale = sprite.scale
+      sprite.setScale(scale);
+      this.spriteScaleX = scale;
+      this.spriteScaleY = scale;
     }
 
-    // bottom center
-    // sprite.setOrigin(0.5, 1);
-    // sprite position
-    const uiHeight = 100;
     if (this.posX) {
       sprite.x = this.posX
       sprite.y = this.posY
@@ -208,7 +265,9 @@ class Player {
       this.posX = sprite.x
       this.posY = sprite.y
     }
+
     sprite.play(animationKey);
+    sprite.setAngle(this.spriteAngle);
     sprite.setInteractive();
 
     sprite.on('animationupdate', (anim, frame) => {
@@ -264,7 +323,7 @@ class Player {
       ...existingData, ...{
         numRows: this.numRows,
         numCols: this.numCols,
-        frame: this.textures.getBase64(this.spritesheetKey, 0),
+        frame: this.getThumbnailBase64(),
       }
     }
 
@@ -273,6 +332,23 @@ class Player {
     this.events.emit('storageItemUpdated', this.storageKey)
 
     // console.log(`Updated data for spritesheet: ${this.spritesheetKey} storage${this.storageKey}`);
+  }
+
+  getThumbnailBase64() {
+    if (!this.spritesheetKey || !this.textures.exists(this.spritesheetKey)) return null;
+    const frame = this.textures.get(this.spritesheetKey).get(0);
+    const canvas = document.createElement('canvas');
+    canvas.width = frame.width;
+    canvas.height = frame.height;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.drawImage(
+      frame.texture.getSourceImage(),
+      frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
+      0, 0, frame.width, frame.height
+    );
+    
+    return canvas.toDataURL();
   }
 }
 
