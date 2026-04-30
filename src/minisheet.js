@@ -1,7 +1,7 @@
 import { ACCENT_COLOR, TEXT_COLOR } from "./consts";
 
-const MAX_WIDTH_OFFSET = 150
-const MAX_HEIGHT = 250
+const MAX_WIDTH_OFFSET = 170
+const MAX_HEIGHT = 140
 
 class MiniSheet {
   constructor(scene) {
@@ -25,7 +25,7 @@ class MiniSheet {
     })
 
     scene.scene.get('GameScene').events.on('currentAnimation', (animationData) => {
-      this.setCurrentFrame(animationData.frameIndex - 1);
+      this.setCurrentFrame(animationData.frameIndex - 1, animationData.frameName);
     })
 
     scene.scene.get('GameScene').events.on('textureAdded', (data) => {
@@ -45,14 +45,24 @@ class MiniSheet {
     })
 
     scene.scene.get('GameScene').events.on('thumbSelected', () => {
-      this.selectedCells = []
+      this.selectedCells = [];
+      this.sequencedCells = new Set();
+      if (this.highlightsGraphics) this.drawSelectedHighlights();
+    })
+
+    scene.scene.get('GameScene').events.on('cellSequenceChanged', (frames) => {
+      this.sequencedCells = new Set(frames);
+      if (this.highlightsGraphics) this.drawSelectedHighlights();
     })
   }
 
   destroyExisting() {
     if (this.container) {
-      this.container.destroy(); // This will remove the container and its children
+      this.container.destroy();
     }
+    // gridTexts are NOT inside the container, so destroy them separately
+    this.gridTexts.forEach(t => t.destroy());
+    this.gridTexts = [];
   }
 
   calculateScale() {
@@ -65,7 +75,6 @@ class MiniSheet {
   createMiniSheet() {
     const scale = this.calculateScale();
 
-    // Create a container for the spritesheet and the grid
     this.container = this.scene.add.container(10, 10);
 
     // Create a miniature version of the spritesheet
@@ -145,6 +154,7 @@ class MiniSheet {
           });
           cellText.setResolution(3);
           this.gridTexts.push(cellText);
+          this.container.add(cellText); // must be inside container so it moves with it
         }
         cellNumber++;
       }
@@ -179,45 +189,28 @@ class MiniSheet {
 
 
   updateFrameHighlight() {
-    if (!this.miniSheet) return
+    if (!this.miniSheet) return;
 
-    const gameWidth = this.scene.game.config.width - MAX_WIDTH_OFFSET;
-    const scaleByWidth = gameWidth / this.imageWidth;
-    const scaleByHeight = MAX_HEIGHT / this.imageHeight;
-    const scale = Math.min(scaleByWidth, scaleByHeight);
-    const frameWidth = this.imageWidth / this.cols;
-    const frameHeight = this.imageHeight / this.rows;
-    const scaledFrameWidth = frameWidth * scale;
-    const scaledFrameHeight = frameHeight * scale;
+    const scale = this.calculateScale();
+    const scaledFrameWidth = (this.imageWidth / this.cols) * scale;
+    const scaledFrameHeight = (this.imageHeight / this.rows) * scale;
 
-
-    let highlightX = (this.currentFrame % this.cols) * scaledFrameWidth;
-    let highlightY = Math.floor(this.currentFrame / this.cols) * scaledFrameHeight;
-
-    // Check if there are selected cells and the current frame is within them
-    if (this.selectedCells && this.selectedCells.length > 0) {
-      // Map the current animation frame to the corresponding grid frame index
-      const gridFrameIndex = this.selectedCells[this.currentFrame % this.selectedCells.length];
-
-      // Calculate the row and column in the grid for this frame
-      const row = Math.floor(gridFrameIndex / this.cols);
-      const col = gridFrameIndex % this.cols;
-
-      // Calculate the highlight position based on the grid cell
-      highlightX = col * scaledFrameWidth;
-      highlightY = row * scaledFrameHeight;
-
-    }
+    // currentFrameName is the actual spritesheet cell index — correct for both
+    // full animations and custom sequences with non-contiguous / repeated frames
+    const cell = this.currentFrameName !== undefined ? this.currentFrameName : this.currentFrame;
+    const highlightX = (cell % this.cols) * scaledFrameWidth;
+    const highlightY = Math.floor(cell / this.cols) * scaledFrameHeight;
 
     this.frameHighlight.clear();
-    this.frameHighlight.fillStyle(ACCENT_COLOR, 0.5); // Use the ACCENT_COLOR with 50% opacity
+    this.frameHighlight.fillStyle(ACCENT_COLOR, 0.5);
     this.frameHighlight.fillRect(highlightX, highlightY, scaledFrameWidth, scaledFrameHeight);
-
   }
 
-  // Call this method to change the current frame
-  setCurrentFrame(frameIndex) {
+  setCurrentFrame(frameIndex, frameName) {
     this.currentFrame = frameIndex;
+    // frameName is the actual spritesheet cell number; use it so the cursor
+    // follows the correct cell even when playing a non-sequential sequence
+    this.currentFrameName = frameName !== undefined ? frameName : frameIndex;
     this.updateFrameHighlight();
   }
 
@@ -232,17 +225,44 @@ class MiniSheet {
 
   onDragStart(pointer) {
     const cell = this.getCellFromPointer(pointer);
+    const isCmdOrCtrl = pointer.event && (pointer.event.ctrlKey || pointer.event.metaKey);
 
-    // Check if the cell is within the grid bounds
     if (cell.col >= 0 && cell.col < this.cols && cell.row >= 0 && cell.row < this.rows) {
-      this.highlightsGraphics.clear();
-      this.isDragging = true;
-      this.selectionStartCell = cell;
-      this.selectionEndCell = cell;
+      if (isCmdOrCtrl) {
+        // Cmd/Ctrl+click: append this cell to the sequence queue
+        const spritesheetKey = this.scene.player.spritesheetKey;
+        const cellNumber = cell.row * this.cols + cell.col;
+        if (!this.sequencedCells) this.sequencedCells = new Set();
+        this.sequencedCells.add(cellNumber);
+        this.drawSelectedHighlights();
+        this.scene.events.emit('addCellToSequence', { spritesheetKey, frameIndex: cellNumber });
+        this.isDragging = false;
+      } else {
+        // Normal click: drag rectangle selection for quick preview
+        this.highlightsGraphics.clear();
+        this.isDragging = true;
+        this.selectionStartCell = cell;
+        this.selectionEndCell = cell;
+      }
     } else {
-      // Pointer is outside the valid grid cells, do not start drag
       this.isDragging = false;
     }
+  }
+
+  drawSelectedHighlights() {
+    this.highlightsGraphics.clear();
+    if (!this.sequencedCells || this.sequencedCells.size === 0) return;
+
+    const scale = this.calculateScale();
+    const miniFrameWidth = this.imageWidth / this.cols * scale;
+    const miniFrameHeight = this.imageHeight / this.rows * scale;
+
+    this.highlightsGraphics.fillStyle(ACCENT_COLOR, 0.5);
+    this.sequencedCells.forEach(cellNumber => {
+      const col = cellNumber % this.cols;
+      const row = Math.floor(cellNumber / this.cols);
+      this.highlightsGraphics.fillRect(col * miniFrameWidth, row * miniFrameHeight, miniFrameWidth, miniFrameHeight);
+    });
   }
 
   onDragMove(pointer) {

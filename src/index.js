@@ -14,6 +14,7 @@ import MiniSheet from './minisheet.js';
 import BubbleText from './bubbleText.js';
 import AnimatedSprite from './animatedSprite.js';
 import Thumbs from './thumbs.js';
+import Sequence from './sequence.js';
 
 Dropzone.autoDiscover = false;
 
@@ -42,6 +43,7 @@ class GameScene extends Phaser.Scene {
     this.thumbs.preload()
     this.player = new Player(this)
     new MiniSheet(this)
+    this.sequence = new Sequence(this)
 
     // let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
     this.blacksmith = new AnimatedSprite(this, 200, 300)
@@ -67,6 +69,11 @@ class GameScene extends Phaser.Scene {
     this.add.existing(this.blacksmith)
 
     this.events.on('thumbSelected', (frameData) => {
+      // New spritesheet selected — wipe the old sequence silently (no cellSequenceChanged
+      // needed since the player animation is already being replaced)
+      this.sequence.clearSilently();
+      this.events.emit('cellSequenceChanged', []);  // reset minisheet highlights
+
       let {
         storageKey,
         base64: imageData,
@@ -74,6 +81,40 @@ class GameScene extends Phaser.Scene {
         imageHeight,
       } = frameData;
       this.playSpritesheet(imageData, imageWidth, imageHeight, storageKey);
+    }, this)
+
+    this.events.on('addToSequence', (frameData) => {
+      this.sequence.addFrame(frameData.storageKey, frameData);
+    }, this)
+
+    this.events.on('addCellToSequence', ({ spritesheetKey, frameIndex }) => {
+      this.sequence.addCell(spritesheetKey, frameIndex);
+      const frames = this.sequence.getCellFrames();
+      if (frames.length > 0) {
+        this.player.playSelectedFrames(frames);
+      }
+    }, this)
+
+    this.events.on('cellSequenceChanged', (frames) => {
+      if (frames.length > 0) {
+        this.player.playSelectedFrames(frames);
+      } else {
+        this.player.selectedCells = null;
+        if (this.player.sprite && this.player.fullAnimationKey) {
+          this.player.sprite.play(this.player.fullAnimationKey);
+        }
+      }
+    }, this)
+
+    this.events.on('playSequence', () => {
+      const cellFrames = this.sequence.getCellFrames();
+      if (cellFrames.length > 0) {
+        this.player.playSelectedFrames(cellFrames);
+        return;
+      }
+      const queueData = this.sequence.getQueueFrameData();
+      if (queueData.length === 0) return;
+      this.player.playSequence(queueData);
     }, this)
 
     this.events.on('storageItemUpdated', (storageKey) => {

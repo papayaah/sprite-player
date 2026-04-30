@@ -117,6 +117,31 @@ class UiScene extends Phaser.Scene {
       space: { item: 40 }
     });
 
+    // COLUMN 0: Sequence Controls
+    const sequenceCol = this.rexUI.add.sizer({
+      orientation: 'y',
+      space: { item: 10 }
+    });
+
+    sequenceCol.add(this.createButton('Play Sequence', () => {
+      this.scene.get('GameScene').events.emit('playSequence');
+    }), { align: 'left' });
+
+    sequenceCol.add(this.createButton('Clear Sequence', () => {
+      this.scene.get('GameScene').sequence.clear();
+    }), { align: 'left' });
+
+    const seqHintText = this.add.text(0, 0, 'Cmd+Click cells\nto build sequence', {
+      fontFamily: 'monogram',
+      fontSize: '12px',
+      color: hexToWebColor(TEXT_COLOR),
+      backgroundColor: '#00000066',
+      padding: { x: 5, y: 2 }
+    });
+    sequenceCol.add(seqHintText, { align: 'left' });
+
+    bodySizer.add(sequenceCol, { align: 'top' });
+
     // COLUMN 1: Parameter Sliders (Grid)
     const sliderGrid = this.rexUI.add.gridSizer({
       column: 4,
@@ -304,6 +329,34 @@ class UiScene extends Phaser.Scene {
 
 
     return box
+  }
+
+  createButton(label, onClickCallback) {
+    const button = this.rexUI.add.label({
+      width: 120,
+      height: 30,
+      background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 6, PRIMARY_COLOR),
+      fontSize: FONT_SIZE,
+      text: this.add.text(0, 0, label, {
+        fontFamily: 'm5x7',
+        fontSize: FONT_SIZE,
+        color: `#${TEXT_COLOR.toString(16)}`,
+      }),
+      padding: { x: 10, y: 5 },
+      align: 'center'
+    })
+      .setInteractive()
+      .on('pointerdown', onClickCallback)
+      .on('pointerover', () => {
+        button.setScale(1.05);
+        this.game.canvas.classList.add('pointer-cursor');
+      })
+      .on('pointerout', () => {
+        button.setScale(1);
+        this.game.canvas.classList.remove('pointer-cursor');
+      });
+
+    return button;
   }
 
 }

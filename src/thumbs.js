@@ -93,8 +93,8 @@ class Thumbs {
       'background'
     )
 
-    const labelWidth = 64;
-    const labelHeight = 64;
+    const labelWidth = 46;
+    const labelHeight = 46;
     const boxes = {}
     for (let i = 1; i <= MAX_THUMBS; i++) {
       let frameData = localStorage.getItem('frame' + i);
@@ -121,13 +121,22 @@ class Thumbs {
 
             item
               .setInteractive()
-              .on('pointerdown', () => {
+              .on('pointerdown', (pointer) => {
                 let currentFd = JSON.parse(localStorage.getItem(storageKey));
-                Object.entries(boxes).forEach(([k, b]) =>
-                  b.setFillStyle(k === storageKey ? ACCENT_COLOR : BACKGROUND_COLOR)
-                )
-                this.activeKey = storageKey
-                this.scene.events.emit('thumbSelected', { ...currentFd, storageKey })
+                // Check for Ctrl/Cmd key from the native event
+                const isCmdOrCtrl = (pointer.event && (pointer.event.ctrlKey || pointer.event.metaKey));
+                
+                if (isCmdOrCtrl) {
+                  console.log('Adding to sequence:', storageKey);
+                  this.scene.events.emit('addToSequence', { ...currentFd, storageKey });
+                } else {
+                  // Normal click to select/play
+                  Object.entries(boxes).forEach(([k, b]) =>
+                    b.setFillStyle(k === storageKey ? ACCENT_COLOR : BACKGROUND_COLOR)
+                  )
+                  this.activeKey = storageKey
+                  this.scene.events.emit('thumbSelected', { ...currentFd, storageKey })
+                }
               })
               .on('pointerover', () => game.canvas.classList.add('pointer-cursor'))
               .on('pointerout',  () => game.canvas.classList.remove('pointer-cursor'))

@@ -272,7 +272,8 @@ class Player {
 
     sprite.on('animationupdate', (anim, frame) => {
       this.events.emit('currentAnimation', {
-        frameIndex: frame.index
+        frameIndex: frame.index,
+        frameName: frame.frame.name  // actual spritesheet cell index
       });
     });
 
@@ -289,13 +290,14 @@ class Player {
   }
 
   playSelectedFrames(selectedCells) {
-    const currentAnimationFrames = this.scene.anims.get(this.fullAnimationKey).frames;
+    if (!selectedCells || selectedCells.length === 0 || !this.sprite) return;
 
-    const selectedFrames = currentAnimationFrames.filter(frame =>
-      selectedCells.includes(frame.index - 1) // because animation frame starts from 0
-    ).map(frame => ({ key: this.spritesheetKey, frame: frame.frame.name }));
+    // Map directly in order, allowing duplicates, so [0,1,2,5,6,7,0,1,2] plays exactly that
+    const selectedFrames = selectedCells.map(cellIndex => ({
+      key: this.spritesheetKey,
+      frame: cellIndex
+    }));
 
-    // Create a new animation with these frames
     const animationKey = `animation-${++this.animationKeyCounter}`;
     this.scene.anims.create({
       key: animationKey,
@@ -304,9 +306,9 @@ class Player {
       repeat: -1
     });
 
-    this.currentAnimationKey = animationKey
-    this.sprite.play(animationKey)
-    this.selectedCells = selectedCells
+    this.currentAnimationKey = animationKey;
+    this.sprite.play(animationKey);
+    this.selectedCells = selectedCells.slice();
   }
 
 
@@ -349,6 +351,51 @@ class Player {
     );
     
     return canvas.toDataURL();
+  }
+
+  playSequence(sequenceFrameDataArray) {
+    // sequenceFrameDataArray is an array of frameData objects
+    // Each frameData has base64, imageWidth, imageHeight, numCols, numRows, etc.
+    
+    if (sequenceFrameDataArray.length === 0) return;
+
+    // Play through each frame in sequence, loading and playing for a duration
+    let sequenceIndex = 0;
+    const frameDuration = 1000; // Duration to show each frame in milliseconds (1 second)
+
+    const playNextFrame = () => {
+      if (sequenceIndex >= sequenceFrameDataArray.length) {
+        // Sequence finished, loop back to start
+        sequenceIndex = 0;
+      }
+
+      const frameData = sequenceFrameDataArray[sequenceIndex];
+      const {
+        base64: imageData,
+        imageWidth,
+        imageHeight,
+        numCols = 4,
+        numRows = 4
+      } = frameData;
+
+      // Update player settings
+      this.numCols = numCols;
+      this.numRows = numRows;
+
+      // Create texture and sprite
+      const textureKey = `sequence-texture-${Date.now()}-${sequenceIndex}`;
+      this.textures.addBase64(textureKey, imageData);
+      
+      this.textures.once('addtexture', () => {
+        this.createAnimation(textureKey);
+        
+        // Schedule next frame in sequence
+        sequenceIndex++;
+        this.sequenceTimer = this.scene.time.delayedCall(frameDuration, playNextFrame);
+      });
+    };
+
+    playNextFrame();
   }
 }
 
