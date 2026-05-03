@@ -70,11 +70,6 @@ class GameScene extends Phaser.Scene {
     this.add.existing(this.blacksmith)
 
     this.events.on('thumbSelected', (frameData) => {
-      // New spritesheet selected — wipe the old sequence silently (no cellSequenceChanged
-      // needed since the player animation is already being replaced)
-      this.sequence.clearSilently();
-      this.events.emit('cellSequenceChanged', []);  // reset minisheet highlights
-
       let {
         storageKey,
         base64: imageData,
@@ -88,8 +83,8 @@ class GameScene extends Phaser.Scene {
       this.sequence.addFrame(frameData.storageKey, frameData);
     }, this)
 
-    this.events.on('addCellToSequence', ({ spritesheetKey, frameIndex }) => {
-      this.sequence.addCell(spritesheetKey, frameIndex);
+    this.events.on('addCellsToSequence', ({ spritesheetKey, frameIndices }) => {
+      this.sequence.addCells(spritesheetKey, frameIndices);
       const frames = this.sequence.getCellFrames();
       if (frames.length > 0) {
         this.player.playSelectedFrames(frames);
@@ -151,6 +146,9 @@ class GameScene extends Phaser.Scene {
   }
 
   playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
+    this.sequence.clearSilently();
+    this.events.emit('cellSequenceChanged', []);
+
     this.bubbleText.destroy()
     this.blacksmith.destroy()
 

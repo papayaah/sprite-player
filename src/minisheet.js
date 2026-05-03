@@ -85,6 +85,11 @@ class MiniSheet {
     const { w: maxW, h: maxH } = this.maxDimensions();
     const fitScale = Math.min(maxW / this.imageWidth, maxH / this.imageHeight);
 
+    // Single-row/column strips: prioritize fitting the whole strip over min cell size
+    if (this.cols === 1 || this.rows === 1) {
+      return fitScale;
+    }
+
     // Enforce minimum cell size so every cell is reachable by pointer
     const cellW = this.imageWidth / this.cols;
     const cellH = this.imageHeight / this.rows;
@@ -95,6 +100,7 @@ class MiniSheet {
 
   createMiniSheet() {
     const scale = this.calculateScale();
+    this._scrollX = 0;
     this._scrollY = 0;
 
     // Visible viewport dimensions (content may be taller and scroll)
@@ -116,9 +122,9 @@ class MiniSheet {
     this.miniSheet = miniSheet
 
     this.frameHighlight = this.scene.add.graphics({ lineStyle: { width: 2, color: ACCENT_COLOR } });
+    this.container.add(miniSheet);
     this.container.add(this.frameHighlight);
     this.container.add(gridGraphics);
-    this.container.add(miniSheet);
 
     this.drawGrid()
 
@@ -146,11 +152,19 @@ class MiniSheet {
     if (!this.isPointerOver(pointer)) return;
 
     const scale = this.calculateScale();
-    const totalH = this.imageHeight * scale;
-    const maxScroll = Math.max(0, totalH - this.maxDimensions().h);
+    const { w: maxW, h: maxH } = this.maxDimensions();
+    const maxScrollX = Math.max(0, this.imageWidth * scale - maxW);
+    const maxScrollY = Math.max(0, this.imageHeight * scale - maxH);
 
-    this._scrollY = Math.max(-maxScroll, Math.min(0, this._scrollY - deltaY));
-    this.container.setY(10 + this._scrollY);
+    // Shift+wheel maps vertical wheel motion to horizontal (mouse-only fallback;
+    // trackpads already deliver horizontal swipes via deltaX directly).
+    const shift = pointer.event && pointer.event.shiftKey;
+    const dx = shift ? deltaY : deltaX;
+    const dy = shift ? 0 : deltaY;
+
+    this._scrollX = Math.max(-maxScrollX, Math.min(0, (this._scrollX || 0) - dx));
+    this._scrollY = Math.max(-maxScrollY, Math.min(0, this._scrollY - dy));
+    this.container.setPosition(10 + this._scrollX, 10 + this._scrollY);
   }
 
   cellSize() {
@@ -168,13 +182,16 @@ class MiniSheet {
 
     const { w: miniFrameWidth, h: miniFrameHeight } = this.cellSize();
 
+    // Outer border inset by 0.5px so 1px-wide lines stay fully inside the mask
+    this.gridGraphics.strokeRect(0.5, 0.5, this.miniSheet.displayWidth - 1, this.miniSheet.displayHeight - 1);
+
     this.gridGraphics.beginPath();
-    for (let i = 0; i <= this.cols; i++) {
+    for (let i = 1; i < this.cols; i++) {
       let x = i * miniFrameWidth;
       this.gridGraphics.moveTo(x, 0);
       this.gridGraphics.lineTo(x, this.miniSheet.displayHeight);
     }
-    for (let j = 0; j <= this.rows; j++) {
+    for (let j = 1; j < this.rows; j++) {
       let y = j * miniFrameHeight;
       this.gridGraphics.moveTo(0, y);
       this.gridGraphics.lineTo(this.miniSheet.displayWidth, y);
@@ -221,6 +238,16 @@ class MiniSheet {
 
     const { w: miniFrameWidth, h: miniFrameHeight } = this.cellSize();
 
+    if (this.isCmdDragging && this.sequencedCells && this.sequencedCells.size > 0) {
+      this.highlightsGraphics.fillStyle(ACCENT_COLOR, 0.5);
+      this.sequencedCells.forEach(cellNumber => {
+        const col = cellNumber % this.cols;
+        const row = Math.floor(cellNumber / this.cols);
+        this.highlightsGraphics.fillRect(col * miniFrameWidth, row * miniFrameHeight, miniFrameWidth, miniFrameHeight);
+      });
+    }
+
+    this.highlightsGraphics.fillStyle(ACCENT_COLOR, this.isCmdDragging ? 0.5 : 0.3);
     for (let col = Math.min(this.selectionStartCell.col, this.selectionEndCell.col); col <= Math.max(this.selectionStartCell.col, this.selectionEndCell.col); col++) {
       for (let row = Math.min(this.selectionStartCell.row, this.selectionEndCell.row); row <= Math.max(this.selectionStartCell.row, this.selectionEndCell.row); row++) {
         this.highlightsGraphics.fillRect(col * miniFrameWidth, row * miniFrameHeight, miniFrameWidth, miniFrameHeight);
@@ -263,22 +290,14 @@ class MiniSheet {
     const isCmdOrCtrl = pointer.event && (pointer.event.ctrlKey || pointer.event.metaKey);
 
     if (cell.col >= 0 && cell.col < this.cols && cell.row >= 0 && cell.row < this.rows) {
-      if (isCmdOrCtrl) {
-        const spritesheetKey = this.scene.player.spritesheetKey;
-        const cellNumber = cell.row * this.cols + cell.col;
-        if (!this.sequencedCells) this.sequencedCells = new Set();
-        this.sequencedCells.add(cellNumber);
-        this.drawSelectedHighlights();
-        this.scene.events.emit('addCellToSequence', { spritesheetKey, frameIndex: cellNumber });
-        this.isDragging = false;
-      } else {
-        this.highlightsGraphics.clear();
-        this.isDragging = true;
-        this.selectionStartCell = cell;
-        this.selectionEndCell = cell;
-      }
+      this.isDragging = true;
+      this.isCmdDragging = isCmdOrCtrl;
+      this.selectionStartCell = cell;
+      this.selectionEndCell = cell;
+      this.drawHighlights();
     } else {
       this.isDragging = false;
+      this.isCmdDragging = false;
     }
   }
 
@@ -315,20 +334,30 @@ class MiniSheet {
       const minRow = Math.min(this.selectionStartCell.row, this.selectionEndCell.row);
       const maxRow = Math.max(this.selectionStartCell.row, this.selectionEndCell.row);
 
-      const selectedCells = [];
+      const cells = [];
       for (let row = minRow; row <= maxRow; row++) {
         for (let col = minCol; col <= maxCol; col++) {
-          selectedCells.push(row * this.cols + col);
+          cells.push(row * this.cols + col);
         }
       }
-      this.selectedCells = selectedCells;
-      this.scene.events.emit('cellsSelected', selectedCells);
+
+      if (this.isCmdDragging) {
+        const spritesheetKey = this.scene.player.spritesheetKey;
+        if (!this.sequencedCells) this.sequencedCells = new Set();
+        cells.forEach(c => this.sequencedCells.add(c));
+        this.drawSelectedHighlights();
+        this.scene.events.emit('addCellsToSequence', { spritesheetKey, frameIndices: cells });
+      } else {
+        this.selectedCells = cells;
+        this.scene.events.emit('cellsSelected', cells);
+      }
     } else {
       this.highlightsGraphics.clear();
       this.selectedCells = null;
     }
 
     this.isDragging = false;
+    this.isCmdDragging = false;
   }
 }
 

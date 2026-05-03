@@ -20,6 +20,13 @@ class Sequence {
     this.render();
   }
 
+  addCells(spritesheetKey, frameIndices) {
+    frameIndices.forEach(frameIndex => {
+      this.queue.push({ spritesheetKey, frameIndex });
+    });
+    this.render();
+  }
+
   getCellFrames() {
     return this.queue
       .filter(item => item.spritesheetKey !== undefined)
@@ -139,9 +146,9 @@ class Sequence {
       this.container.add([box, sprite, label].filter(Boolean));
     });
 
-    // Position strip just above the UI bar
+    // Position strip just above the UI bar — leave room for a second row of items
     const gameH = this.scene.game.config.height;
-    const stripY = gameH - UI_HEIGHT - 54;
+    const stripY = gameH - UI_HEIGHT - 96;
     this.container.setPosition(10, stripY);
   }
 
