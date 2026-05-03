@@ -8,6 +8,7 @@ import { Pane } from 'tweakpane';
 
 import Player from './scenes/player.js';
 import UiScene from './scenes/ui.js';
+import { exportFrames, exportSpritesheet } from './export.js';
 
 import { DEBUG, MAX_THUMBS } from './consts.js';
 import MiniSheet from './minisheet.js';
@@ -42,7 +43,7 @@ class GameScene extends Phaser.Scene {
     this.thumbs = new Thumbs(this)
     this.thumbs.preload()
     this.player = new Player(this)
-    new MiniSheet(this)
+    this.miniSheet = new MiniSheet(this)
     this.sequence = new Sequence(this)
 
     // let currentFrameIndex = parseInt(localStorage.getItem('currentFrameIndex')) || 1;
@@ -120,6 +121,18 @@ class GameScene extends Phaser.Scene {
     this.events.on('storageItemUpdated', (storageKey) => {
       this.thumbs.reload(() => this.thumbs.create())
     })
+
+    this.events.on('exportFrames', (prefix) => {
+      const frames = this.sequence.getCellFrames();
+      const toExport = frames.length > 0 ? frames : (this.player.selectedCells || []);
+      exportFrames(this, this.player.spritesheetKey, toExport, prefix);
+    }, this)
+
+    this.events.on('exportSheet', (prefix) => {
+      const frames = this.sequence.getCellFrames();
+      const toExport = frames.length > 0 ? frames : (this.player.selectedCells || []);
+      exportSpritesheet(this, this.player.spritesheetKey, toExport, prefix);
+    }, this)
   }
 
   createMiniSheet(frameData) {
@@ -217,6 +230,7 @@ const config = {
   roundPixels: true,
   width: 800,
   height: 600,
+  dom: { createContainer: true },
   scene: [GameScene, UiScene],
   scale: {
     mode: Phaser.Scale.FIT,

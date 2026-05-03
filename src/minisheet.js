@@ -1,12 +1,13 @@
-import { ACCENT_COLOR, TEXT_COLOR } from "./consts";
+import { ACCENT_COLOR, TEXT_COLOR, UI_HEIGHT } from "./consts";
 
 const MAX_WIDTH_OFFSET = 170
-const MAX_HEIGHT = 140
+const MIN_CELL_PX = 20   // minimum rendered cell size so cells stay clickable
 
 class MiniSheet {
   constructor(scene) {
     this.scene = scene
     this.gridTexts = []
+    this._scrollY = 0
 
     scene.scene.get('UiScene').events.on('sliderChanged', (sliderData) => {
       if (!this.gridGraphics) return
@@ -29,7 +30,6 @@ class MiniSheet {
     })
 
     scene.scene.get('GameScene').events.on('textureAdded', (data) => {
-      // console.time("createMiniSheet")
       let { textureKey, storageKey } = data
       this.textureKey = textureKey
       this.storageKey = storageKey
@@ -41,7 +41,6 @@ class MiniSheet {
       this.imageWidth = existingData.imageWidth
       this.destroyExisting()
       this.createMiniSheet()
-      // console.timeEnd("createMiniSheet")
     })
 
     scene.scene.get('GameScene').events.on('thumbSelected', () => {
@@ -57,30 +56,60 @@ class MiniSheet {
   }
 
   destroyExisting() {
+    this.scene.input.off('pointerdown', this.onDragStart, this);
+    this.scene.input.off('pointermove', this.onDragMove, this);
+    this.scene.input.off('pointerup', this.onDragEnd, this);
+    this.scene.input.off('wheel', this._onWheel, this);
+
+    if (this._maskGraphics) {
+      this._maskGraphics.destroy();
+      this._maskGraphics = null;
+    }
     if (this.container) {
       this.container.destroy();
     }
-    // gridTexts are NOT inside the container, so destroy them separately
     this.gridTexts.forEach(t => t.destroy());
     this.gridTexts = [];
   }
 
+  maxDimensions() {
+    const gameWidth  = this.scene.game.config.width;
+    const gameHeight = this.scene.game.config.height;
+    return {
+      w: Math.floor((gameWidth  - MAX_WIDTH_OFFSET) * 0.72),
+      h: Math.floor((gameHeight - UI_HEIGHT)        * 0.62),
+    };
+  }
+
   calculateScale() {
-    const gameWidth = this.scene.game.config.width - MAX_WIDTH_OFFSET;
-    const scaleByWidth = gameWidth / this.imageWidth;
-    const scaleByHeight = MAX_HEIGHT / this.imageHeight;
-    return Math.min(scaleByWidth, scaleByHeight);
+    const { w: maxW, h: maxH } = this.maxDimensions();
+    const fitScale = Math.min(maxW / this.imageWidth, maxH / this.imageHeight);
+
+    // Enforce minimum cell size so every cell is reachable by pointer
+    const cellW = this.imageWidth / this.cols;
+    const cellH = this.imageHeight / this.rows;
+    const minScale = MIN_CELL_PX / Math.min(cellW, cellH);
+
+    return Math.max(fitScale, minScale);
   }
 
   createMiniSheet() {
     const scale = this.calculateScale();
+    this._scrollY = 0;
+
+    // Visible viewport dimensions (content may be taller and scroll)
+    const { w: maxW, h: maxH } = this.maxDimensions();
+    this._visW = Math.min(this.imageWidth * scale, maxW);
+    this._visH = Math.min(this.imageHeight * scale, maxH);
 
     this.container = this.scene.add.container(10, 10);
 
-    // Create a miniature version of the spritesheet
-    let miniSheet = this.scene.add.sprite(0, 0, this.textureKey).setScale(scale).setOrigin(0, 0);
+    // Clip content that overflows the visible viewport
+    this._maskGraphics = this.scene.add.graphics();
+    this._maskGraphics.fillRect(10, 10, this._visW, this._visH);
+    this.container.setMask(this._maskGraphics.createGeometryMask());
 
-    // Draw the grid
+    let miniSheet = this.scene.add.sprite(0, 0, this.textureKey).setScale(scale).setOrigin(0, 0);
     let gridGraphics = this.scene.add.graphics({ lineStyle: { width: 1, color: ACCENT_COLOR } });
 
     this.gridGraphics = gridGraphics
@@ -93,7 +122,6 @@ class MiniSheet {
 
     this.drawGrid()
 
-    // Initialize selection properties
     this.isDragging = false;
     this.selectionStartCell = null;
     this.selectionEndCell = null;
@@ -101,32 +129,51 @@ class MiniSheet {
     this.highlightsGraphics = this.scene.add.graphics({ fillStyle: { color: ACCENT_COLOR, alpha: 0.3 } });
     this.container.add(this.highlightsGraphics);
 
-    // Add mouse event listeners
-    let miniSheetWidth = (this.imageWidth) * scale
-    let miniSheetHeight = (this.imageHeight) * scale
-    this.container.setSize(miniSheetWidth, miniSheetHeight).setInteractive()
     this.scene.input.on('pointerdown', this.onDragStart, this);
     this.scene.input.on('pointermove', this.onDragMove, this);
     this.scene.input.on('pointerup', this.onDragEnd, this);
+    this.scene.input.on('wheel', this._onWheel, this);
+  }
 
+  // Returns true when the pointer is inside the visible minisheet viewport
+  isPointerOver(pointer) {
+    if (!this._visW) return false;
+    return pointer.x >= 10 && pointer.x <= 10 + this._visW &&
+           pointer.y >= 10 && pointer.y <= 10 + this._visH;
+  }
+
+  _onWheel(pointer, gameObjects, deltaX, deltaY) {
+    if (!this.isPointerOver(pointer)) return;
+
+    const scale = this.calculateScale();
+    const totalH = this.imageHeight * scale;
+    const maxScroll = Math.max(0, totalH - this.maxDimensions().h);
+
+    this._scrollY = Math.max(-maxScroll, Math.min(0, this._scrollY - deltaY));
+    this.container.setY(10 + this._scrollY);
+  }
+
+  cellSize() {
+    // Always derive cell dimensions from the sprite's actual rendered size
+    // so grid lines, highlights, and hit-testing stay in sync even when
+    // cols/rows change via sliders without a full re-create.
+    return {
+      w: this.miniSheet.displayWidth  / this.cols,
+      h: this.miniSheet.displayHeight / this.rows,
+    };
   }
 
   drawGrid() {
-    // Clear the existing grid graphics
     this.gridGraphics.clear();
 
-    const scale = this.calculateScale();
-    let miniFrameWidth = (this.imageWidth / this.cols) * scale;
-    let miniFrameHeight = (this.imageHeight / this.rows) * scale;
+    const { w: miniFrameWidth, h: miniFrameHeight } = this.cellSize();
 
-    // Batch line drawing operations
     this.gridGraphics.beginPath();
     for (let i = 0; i <= this.cols; i++) {
       let x = i * miniFrameWidth;
       this.gridGraphics.moveTo(x, 0);
       this.gridGraphics.lineTo(x, this.miniSheet.displayHeight);
     }
-
     for (let j = 0; j <= this.rows; j++) {
       let y = j * miniFrameHeight;
       this.gridGraphics.moveTo(0, y);
@@ -134,7 +181,6 @@ class MiniSheet {
     }
     this.gridGraphics.strokePath();
 
-    // Reuse or create text objects
     let cellNumber = 0;
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
@@ -154,13 +200,12 @@ class MiniSheet {
           });
           cellText.setResolution(3);
           this.gridTexts.push(cellText);
-          this.container.add(cellText); // must be inside container so it moves with it
+          this.container.add(cellText);
         }
         cellNumber++;
       }
     }
 
-    // Trim excess text objects if necessary
     if (this.gridTexts.length > cellNumber) {
       for (let i = cellNumber; i < this.gridTexts.length; i++) {
         this.gridTexts[i].destroy();
@@ -169,17 +214,13 @@ class MiniSheet {
     }
   }
 
-
   drawHighlights() {
     if (!this.isDragging) return;
 
     this.highlightsGraphics.clear();
 
-    const scale = this.calculateScale();
-    const miniFrameWidth = this.imageWidth / this.cols * scale;
-    const miniFrameHeight = this.imageHeight / this.rows * scale;
+    const { w: miniFrameWidth, h: miniFrameHeight } = this.cellSize();
 
-    // Highlight selected cells
     for (let col = Math.min(this.selectionStartCell.col, this.selectionEndCell.col); col <= Math.max(this.selectionStartCell.col, this.selectionEndCell.col); col++) {
       for (let row = Math.min(this.selectionStartCell.row, this.selectionEndCell.row); row <= Math.max(this.selectionStartCell.row, this.selectionEndCell.row); row++) {
         this.highlightsGraphics.fillRect(col * miniFrameWidth, row * miniFrameHeight, miniFrameWidth, miniFrameHeight);
@@ -187,16 +228,11 @@ class MiniSheet {
     }
   }
 
-
   updateFrameHighlight() {
     if (!this.miniSheet) return;
 
-    const scale = this.calculateScale();
-    const scaledFrameWidth = (this.imageWidth / this.cols) * scale;
-    const scaledFrameHeight = (this.imageHeight / this.rows) * scale;
+    const { w: scaledFrameWidth, h: scaledFrameHeight } = this.cellSize();
 
-    // currentFrameName is the actual spritesheet cell index — correct for both
-    // full animations and custom sequences with non-contiguous / repeated frames
     const cell = this.currentFrameName !== undefined ? this.currentFrameName : this.currentFrame;
     const highlightX = (cell % this.cols) * scaledFrameWidth;
     const highlightY = Math.floor(cell / this.cols) * scaledFrameHeight;
@@ -208,28 +244,26 @@ class MiniSheet {
 
   setCurrentFrame(frameIndex, frameName) {
     this.currentFrame = frameIndex;
-    // frameName is the actual spritesheet cell number; use it so the cursor
-    // follows the correct cell even when playing a non-sequential sequence
     this.currentFrameName = frameName !== undefined ? frameName : frameIndex;
     this.updateFrameHighlight();
   }
 
   getCellFromPointer(pointer) {
-    const scale = this.calculateScale();
-    const miniFrameWidth = (this.imageWidth / this.cols) * scale;
-    const miniFrameHeight = (this.imageHeight / this.rows) * scale;
-    const col = Math.floor((pointer.x - this.container.x) / miniFrameWidth);
-    const row = Math.floor((pointer.y - this.container.y) / miniFrameHeight);
+    const { w, h } = this.cellSize();
+    const col = Math.floor((pointer.x - this.container.x) / w);
+    const row = Math.floor((pointer.y - this.container.y) / h);
     return { col, row };
   }
 
   onDragStart(pointer) {
+    // Ignore clicks outside the visible viewport
+    if (!this.isPointerOver(pointer)) return;
+
     const cell = this.getCellFromPointer(pointer);
     const isCmdOrCtrl = pointer.event && (pointer.event.ctrlKey || pointer.event.metaKey);
 
     if (cell.col >= 0 && cell.col < this.cols && cell.row >= 0 && cell.row < this.rows) {
       if (isCmdOrCtrl) {
-        // Cmd/Ctrl+click: append this cell to the sequence queue
         const spritesheetKey = this.scene.player.spritesheetKey;
         const cellNumber = cell.row * this.cols + cell.col;
         if (!this.sequencedCells) this.sequencedCells = new Set();
@@ -238,7 +272,6 @@ class MiniSheet {
         this.scene.events.emit('addCellToSequence', { spritesheetKey, frameIndex: cellNumber });
         this.isDragging = false;
       } else {
-        // Normal click: drag rectangle selection for quick preview
         this.highlightsGraphics.clear();
         this.isDragging = true;
         this.selectionStartCell = cell;
@@ -253,9 +286,7 @@ class MiniSheet {
     this.highlightsGraphics.clear();
     if (!this.sequencedCells || this.sequencedCells.size === 0) return;
 
-    const scale = this.calculateScale();
-    const miniFrameWidth = this.imageWidth / this.cols * scale;
-    const miniFrameHeight = this.imageHeight / this.rows * scale;
+    const { w: miniFrameWidth, h: miniFrameHeight } = this.cellSize();
 
     this.highlightsGraphics.fillStyle(ACCENT_COLOR, 0.5);
     this.sequencedCells.forEach(cellNumber => {
@@ -267,7 +298,6 @@ class MiniSheet {
 
   onDragMove(pointer) {
     if (!this.isDragging) return;
-
     this.selectionEndCell = this.getCellFromPointer(pointer);
     this.drawHighlights();
   }
@@ -277,9 +307,7 @@ class MiniSheet {
 
     const endCell = this.getCellFromPointer(pointer);
 
-    // Check if the end cell is within the grid bounds
     if (endCell.col >= 0 && endCell.col < this.cols && endCell.row >= 0 && endCell.row < this.rows) {
-      // Drag end is within a valid cell, proceed with selecting cells
       this.selectionEndCell = endCell;
 
       const minCol = Math.min(this.selectionStartCell.col, this.selectionEndCell.col);
@@ -290,22 +318,18 @@ class MiniSheet {
       const selectedCells = [];
       for (let row = minRow; row <= maxRow; row++) {
         for (let col = minCol; col <= maxCol; col++) {
-          const cellNumber = row * this.cols + col;
-          selectedCells.push(cellNumber);
+          selectedCells.push(row * this.cols + col);
         }
       }
       this.selectedCells = selectedCells;
       this.scene.events.emit('cellsSelected', selectedCells);
     } else {
-      // Drag end is outside valid cells, cancel the drag
       this.highlightsGraphics.clear();
       this.selectedCells = null;
     }
 
     this.isDragging = false;
   }
-
-
 }
 
 export default MiniSheet;

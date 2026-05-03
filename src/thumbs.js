@@ -94,7 +94,7 @@ class Thumbs {
     )
 
     const labelWidth = 46;
-    const labelHeight = 46;
+    const labelHeight = 38;
     const boxes = {}
     for (let i = 1; i <= MAX_THUMBS; i++) {
       let frameData = localStorage.getItem('frame' + i);

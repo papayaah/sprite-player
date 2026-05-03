@@ -146,6 +146,7 @@ class Player {
     // Mouse wheel scaling logic
     this.scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
       if (!this.sprite) return;
+      if (this.scene.miniSheet?.isPointerOver(pointer)) return;
 
       const scaleStep = 0.2; // Optimized for faster scaling
       const direction = deltaY > 0 ? -1 : 1; // Scroll Down = shrink, Scroll Up = grow
@@ -219,20 +220,21 @@ class Player {
     // console.log('set this.spritesheetKey', this.spritesheetKey, this.imageWidth, this.imageHeight, this.numCols, this.numRows, this.textureKey)
     let frameWidth = this.imageWidth / this.numCols;
     let frameHeight = this.imageHeight / this.numRows;
-    let totalFrames = this.numCols * this.numRows;
+
+    this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
+
+    const actualFrames = this.textures.get(spritesheetKey).frameTotal - 1;
 
     this.scene.events.emit('updateSpriteInfo', {
       frameWidth: Math.round(frameWidth),
       frameHeight: Math.round(frameHeight),
-      totalFrames: totalFrames
+      totalFrames: actualFrames
     });
-
-    this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: frameWidth, frameHeight: frameHeight });
 
     const animationKey = `animation-${++this.animationKeyCounter}`;
     const animation = this.anims.create({
       key: animationKey,
-      frames: this.anims.generateFrameNumbers(spritesheetKey, { start: 0, end: this.numCols * this.numRows - 1 }),
+      frames: this.anims.generateFrameNumbers(spritesheetKey, { start: 0, end: actualFrames - 1 }),
       frameRate: this.frameRate,
       repeat: -1
     });

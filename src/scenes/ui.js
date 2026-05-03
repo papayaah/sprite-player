@@ -93,15 +93,13 @@ class UiScene extends Phaser.Scene {
   }
 
   createUi() {
-    // ROOT VERTICAL SIZER
     const rootSizer = this.rexUI.add.sizer({
       x: 20,
       y: this.game.config.height - UI_HEIGHT + 15,
-      orientation: 'y',
+      orientation: 'x',
       space: { item: 15 }
     });
 
-    // HEADER: Technical Info
     this.infoText = this.add.text(0, 0, 'Frames: - | W: - | H: -', {
       fontFamily: 'monogram',
       fontSize: FONT_SIZE,
@@ -109,18 +107,11 @@ class UiScene extends Phaser.Scene {
       backgroundColor: '#00000066',
       padding: { x: 5, y: 2 }
     });
-    rootSizer.add(this.infoText, { align: 'left', padding: { left: 0 } });
-
-    // BODY: 3-Column Layout
-    const bodySizer = this.rexUI.add.sizer({
-      orientation: 'x',
-      space: { item: 40 }
-    });
 
     // COLUMN 0: Sequence Controls
     const sequenceCol = this.rexUI.add.sizer({
       orientation: 'y',
-      space: { item: 10 }
+      space: { item: 6 }
     });
 
     sequenceCol.add(this.createButton('Play Sequence', () => {
@@ -131,43 +122,68 @@ class UiScene extends Phaser.Scene {
       this.scene.get('GameScene').sequence.clear();
     }), { align: 'left' });
 
-    const seqHintText = this.add.text(0, 0, 'Cmd+Click cells\nto build sequence', {
-      fontFamily: 'monogram',
-      fontSize: '12px',
-      color: hexToWebColor(TEXT_COLOR),
-      backgroundColor: '#00000066',
-      padding: { x: 5, y: 2 }
+    this.exportNameInput = this.add.dom(0, 0, 'input', [
+      'background:#203c56',
+      'color:#fff6d3',
+      'border:1px solid #f9a875',
+      'font-family:monogram',
+      'font-size:13px',
+      'padding:2px 5px',
+      'width:108px',
+      'outline:none',
+      'box-sizing:border-box',
+    ].join(';'));
+    this.exportNameInput.node.placeholder = 'sprite_name';
+    this.exportNameInput.width = 112;
+    this.exportNameInput.height = 22;
+    this.exportNameInput.setOrigin(0, 0.5);
+    sequenceCol.add(this.exportNameInput, { align: 'left' });
+
+    const exportRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 4 } });
+    exportRow.add(this.createSmallButton('Frames', () => {
+      const prefix = this.exportNameInput.node.value.trim() || 'sprite';
+      this.scene.get('GameScene').events.emit('exportFrames', prefix);
+    }));
+    exportRow.add(this.createSmallButton('Sheet', () => {
+      const prefix = this.exportNameInput.node.value.trim() || 'sprite';
+      this.scene.get('GameScene').events.emit('exportSheet', prefix);
+    }));
+    sequenceCol.add(exportRow, { align: 'left' });
+
+    rootSizer.add(sequenceCol, { align: 'top' });
+
+    // COLUMN 1: Sliders + info + BG picker stacked vertically
+    const sliderCol = this.rexUI.add.sizer({
+      orientation: 'y',
+      space: { item: 6 }
     });
-    sequenceCol.add(seqHintText, { align: 'left' });
 
-    bodySizer.add(sequenceCol, { align: 'top' });
-
-    // COLUMN 1: Parameter Sliders (Grid)
     const sliderGrid = this.rexUI.add.gridSizer({
       column: 4,
       row: 2,
       columnProportions: 0,
       rowProportions: 0,
-      space: {
-        column: 15,
-        row: 5,
-      },
+      space: { column: 15, row: 5 },
     });
 
-    // Row 0
     this.scaleSlider = this.createSliderWithLabel(sliderGrid, 'Scale', 3, 0.1, 10, true);
     this.scaleXSlider = this.createSliderWithLabel(sliderGrid, 'Scale X', 3, 0.1, 10, true);
     this.scaleYSlider = this.createSliderWithLabel(sliderGrid, 'Scale Y', 3, 0.1, 10, true);
     this.createSliderWithLabel(sliderGrid, 'Rotation', 0, 0, 360);
-
-    // Row 1
     this.colSlider = this.createSliderWithLabel(sliderGrid, 'Cols', this.cols, 1, 60);
-    this.rowSlider = this.createSliderWithLabel(sliderGrid, 'Rows', this.rows, 1, 30);
+    this.rowSlider = this.createSliderWithLabel(sliderGrid, 'Rows', this.rows, 1, 40);
     this.createSliderWithLabel(sliderGrid, 'Frame Rate', 10, 0, 120);
 
-    bodySizer.add(sliderGrid, { align: 'top' });
+    sliderCol.add(sliderGrid, { align: 'left' });
 
-    // COLUMN 2: Animation Controls (Vertical Checkboxes)
+    const bottomRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 12 } });
+    bottomRow.add(this.infoText);
+    bottomRow.add(this.createBackgroundPicker());
+    sliderCol.add(bottomRow, { align: 'left' });
+
+    rootSizer.add(sliderCol, { align: 'top' });
+
+    // COLUMN 2: Animation Controls
     const checkboxCol = this.rexUI.add.sizer({
       orientation: 'y',
       space: { item: 10 }
@@ -176,25 +192,8 @@ class UiScene extends Phaser.Scene {
     checkboxCol.add(this.createCheckboxWithLabel('<Y>oyo', false), { align: 'left' });
     checkboxCol.add(this.createCheckboxWithLabel('<P>ause', false), { align: 'left' });
 
-    bodySizer.add(checkboxCol, { align: 'top' });
+    rootSizer.add(checkboxCol, { align: 'top' });
 
-    // COLUMN 3: Visuals (BG Picker)
-    const visualsCol = this.rexUI.add.sizer({
-      orientation: 'y',
-      space: { item: 10 }
-    });
-
-    const bgLabel = this.add.text(0, 0, 'BG Color Picker:', {
-      fontFamily: 'monogram',
-      fontSize: FONT_SIZE,
-      color: hexToWebColor(TEXT_COLOR)
-    });
-    visualsCol.add(bgLabel, { align: 'left' });
-    visualsCol.add(this.createBackgroundPicker(), { align: 'left' });
-
-    bodySizer.add(visualsCol, { align: 'top' });
-
-    rootSizer.add(bodySizer);
     rootSizer.setOrigin(0, 0).layout();
   }
 
@@ -329,6 +328,32 @@ class UiScene extends Phaser.Scene {
 
 
     return box
+  }
+
+  createSmallButton(label, onClickCallback) {
+    const button = this.rexUI.add.label({
+      width: 54,
+      height: 22,
+      background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 4, PRIMARY_COLOR),
+      text: this.add.text(0, 0, label, {
+        fontFamily: 'm5x7',
+        fontSize: '13px',
+        color: `#${TEXT_COLOR.toString(16)}`,
+      }),
+      padding: { x: 6, y: 3 },
+      align: 'center'
+    })
+      .setInteractive()
+      .on('pointerdown', onClickCallback)
+      .on('pointerover', () => {
+        button.setScale(1.05);
+        this.game.canvas.classList.add('pointer-cursor');
+      })
+      .on('pointerout', () => {
+        button.setScale(1);
+        this.game.canvas.classList.remove('pointer-cursor');
+      });
+    return button;
   }
 
   createButton(label, onClickCallback) {
