@@ -8,7 +8,7 @@ import { Pane } from 'tweakpane';
 
 import Player from './scenes/player.js';
 import UiScene from './scenes/ui.js';
-import { exportFrames, exportSpritesheet } from './export.js';
+import { exportFrames, exportSpritesheet, exportGif } from './export.js';
 
 import { DEBUG, MAX_THUMBS } from './consts.js';
 import MiniSheet from './minisheet.js';
@@ -124,6 +124,55 @@ class GameScene extends Phaser.Scene {
     this.events.on('exportSheet', (prefix) => {
       exportSpritesheet(this, this.player.spritesheetKey, this.getExportFrameIndices(), prefix);
     }, this)
+
+    this.events.on('exportGif', (prefix) => {
+      exportGif(this, this.player.spritesheetKey, this.getExportFrameIndices(), prefix, this.player.frameRate);
+    }, this)
+
+    this.events.on('setBackgroundImage', ({ id, dataURL }) => {
+      this.setBackgroundImage(id, dataURL);
+    }, this)
+
+    this.events.on('clearBackgroundImage', () => {
+      this.clearBackgroundImage();
+    }, this)
+  }
+
+  setBackgroundImage(id, dataURL) {
+    const textureKey = `bg-${id}`;
+    console.log('[bg] setBackgroundImage', id, 'dataURL len=', dataURL?.length);
+    const apply = () => {
+      if (this.bgImage) this.bgImage.destroy();
+      this.bgImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+        .setOrigin(0.5, 0.5)
+        .setDepth(-1000);
+      const scaleX = this.scale.width / this.bgImage.width;
+      const scaleY = this.scale.height / this.bgImage.height;
+      this.bgImage.setScale(Math.max(scaleX, scaleY));
+      console.log('[bg] image rendered', { w: this.bgImage.width, h: this.bgImage.height, scale: this.bgImage.scaleX });
+    };
+    if (this.textures.exists(textureKey)) {
+      console.log('[bg] texture exists, applying directly');
+      apply();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      console.log('[bg] HTMLImage onload', img.naturalWidth, 'x', img.naturalHeight);
+      if (!this.textures.exists(textureKey)) {
+        this.textures.addImage(textureKey, img);
+      }
+      apply();
+    };
+    img.onerror = (e) => console.warn('[bg] HTMLImage load failed', id, e);
+    img.src = dataURL;
+  }
+
+  clearBackgroundImage() {
+    if (this.bgImage) {
+      this.bgImage.destroy();
+      this.bgImage = null;
+    }
   }
 
   getExportFrameIndices() {
@@ -151,7 +200,7 @@ class GameScene extends Phaser.Scene {
     this.miniSheet = new MiniSheet(this, textureKey, imageWidth, imageHeight, numRows, numCols);
   }
 
-  playSpritesheet(imageData, imageWidth, imageHeight, storageKey) {
+  playSpritesheet(imageData, imageWidth, imageHeight, storageKey, name) {
     this.sequence.clearSilently();
     this.events.emit('cellSequenceChanged', []);
 
@@ -162,7 +211,7 @@ class GameScene extends Phaser.Scene {
     this.textures.addBase64(textureKey, imageData)
     this.textures.once('addtexture', () => {
       if (!storageKey) {
-        storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight)
+        storageKey = this.saveSpritesheet(textureKey, imageWidth, imageHeight, name)
         this.thumbs.activeKey = storageKey
         this.thumbs.reload(() => this.thumbs.create())
       }
@@ -170,7 +219,7 @@ class GameScene extends Phaser.Scene {
     })
   }
 
-  saveSpritesheet(textureKey, imageWidth, imageHeight) {
+  saveSpritesheet(textureKey, imageWidth, imageHeight, name) {
     const spritesheetKey = `spritesheet-${Date.now()}`;
     this.textures.addSpriteSheet(spritesheetKey, this.textures.get(textureKey).getSourceImage(), { frameWidth: 32, frameHeight: 32 });
     let savedImage = {
@@ -180,6 +229,7 @@ class GameScene extends Phaser.Scene {
       numCols: this.player.numCols,
       numRows: this.player.numRows,
       frame: this.textures.getBase64(spritesheetKey, 0),
+      name: name || '',
     }
     return this.saveNewFrame(JSON.stringify(savedImage));
   }
@@ -200,12 +250,12 @@ class GameScene extends Phaser.Scene {
     return frameKey
   }
 
-  loadImage(self, imageData) {
+  loadImage(self, imageData, name) {
     const image = new Image()
     image.onload = function() {
       const imageWidth = this.width
       const imageHeight = this.height
-      self.playSpritesheet(imageData, imageWidth, imageHeight)
+      self.playSpritesheet(imageData, imageWidth, imageHeight, undefined, name)
     }
     image.src = imageData
   }
@@ -218,8 +268,9 @@ class GameScene extends Phaser.Scene {
       clickable: false,
       addedfile: (file) => {
         const reader = new FileReader()
+        const name = (file.name || '').replace(/\.[^.]+$/, '')
         reader.onload = function (e) {
-          self.loadImage(self, e.target.result)
+          self.loadImage(self, e.target.result, name)
         };
         reader.readAsDataURL(file)
       }

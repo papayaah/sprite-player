@@ -24,6 +24,13 @@ class UiScene extends Phaser.Scene {
 
       this.setSliderValue(this.colSlider, this.cols)
       this.setSliderValue(this.rowSlider, this.rows)
+
+      if (this.exportNameInput?.node) {
+        this.exportNameInput.node.value = existingData.name || ''
+      }
+      if (this.exportSuffixInput?.node) {
+        this.exportSuffixInput.node.value = existingData.suffix || ''
+      }
     })
 
     this.scene.get('GameScene').events.on('syncScaleSliders', (data) => {
@@ -92,23 +99,39 @@ class UiScene extends Phaser.Scene {
     }
   }
 
-  createExportInput(placeholder) {
-    const input = this.add.dom(0, 0, 'input', [
+  createExportInputs() {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;gap:4px;';
+
+    const inputCss = [
       'background:#203c56',
       'color:#fff6d3',
       'border:1px solid #f9a875',
       'font-family:monogram',
       'font-size:13px',
       'padding:2px 5px',
-      'width:108px',
       'outline:none',
       'box-sizing:border-box',
-    ].join(';'));
-    input.node.placeholder = placeholder;
-    input.width = 112;
-    input.height = 22;
-    input.setOrigin(0, 0.5);
-    return input;
+      'margin:0',
+    ].join(';');
+
+    const nameInput = document.createElement('input');
+    nameInput.style.cssText = inputCss + ';width:80px;';
+    nameInput.placeholder = 'sprite_name';
+
+    const suffixInput = document.createElement('input');
+    suffixInput.style.cssText = inputCss + ';width:56px;';
+    suffixInput.placeholder = 'suffix';
+
+    wrapper.appendChild(nameInput);
+    wrapper.appendChild(suffixInput);
+
+    const dom = this.add.dom(0, 0, wrapper);
+    dom.width = 144;
+    dom.height = 22;
+    dom.setOrigin(0, 0.5);
+
+    return { dom, nameInput, suffixInput };
   }
 
   getExportName() {
@@ -131,11 +154,11 @@ class UiScene extends Phaser.Scene {
   }
 
   createUi() {
-    const rootSizer = this.rexUI.add.sizer({
-      x: 20,
-      y: this.game.config.height - UI_HEIGHT + 15,
+    this.rootSizer = this.rexUI.add.sizer({
+      x: 10,
+      y: this.game.config.height - UI_HEIGHT + 6,
       orientation: 'x',
-      space: { item: 15 }
+      space: { item: 6 }
     });
 
     this.infoText = this.add.text(0, 0, 'Frames: - | W: - | H: -', {
@@ -149,22 +172,41 @@ class UiScene extends Phaser.Scene {
     // COLUMN 0: Sequence Controls
     const sequenceCol = this.rexUI.add.sizer({
       orientation: 'y',
-      space: { item: 6 }
+      space: { item: 3 }
     });
 
-    sequenceCol.add(this.createButton('Play Sequence', () => {
-      this.scene.get('GameScene').events.emit('playSequence');
-    }), { align: 'left' });
+    const seqButtonRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 4 } });
+    seqButtonRow.add(this.createButton('Play', () => {
+      const game = this.scene.get('GameScene');
+      if (!game.player?.spritesheetKey) return this.flashExportHint('Load a spritesheet first');
+      const hasSequence = game.sequence?.getCellFrames().length > 0;
+      this.flashExportHint(hasSequence ? 'Playing your selected sequence' : 'Playing all frames');
+      game.events.emit('playSequence');
+    }, 70));
+    seqButtonRow.add(this.createButton('Clear', () => {
+      const game = this.scene.get('GameScene');
+      if (!game.sequence?.getCellFrames().length) return this.flashExportHint('Nothing to clear');
+      this.flashExportHint('Cleared the selected sequence');
+      game.sequence.clear();
+    }, 70));
+    sequenceCol.add(seqButtonRow, { align: 'left' });
 
-    sequenceCol.add(this.createButton('Clear Sequence', () => {
-      this.scene.get('GameScene').sequence.clear();
-    }), { align: 'left' });
+    const inputs = this.createExportInputs();
+    this.exportNameInput = { node: inputs.nameInput };
+    this.exportSuffixInput = { node: inputs.suffixInput };
+    sequenceCol.add(inputs.dom, { align: 'left' });
 
-    this.exportNameInput = this.createExportInput('sprite_name');
-    sequenceCol.add(this.exportNameInput, { align: 'left' });
-
-    this.exportSuffixInput = this.createExportInput('suffix (optional)');
-    sequenceCol.add(this.exportSuffixInput, { align: 'left' });
+    const persistInputs = () => {
+      if (!this.storageKey) return;
+      const raw = localStorage.getItem(this.storageKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      data.name = inputs.nameInput.value;
+      data.suffix = inputs.suffixInput.value;
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+    };
+    inputs.nameInput.addEventListener('change', persistInputs);
+    inputs.suffixInput.addEventListener('change', persistInputs);
 
     const exportRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 4 } });
     exportRow.add(this.createSmallButton('Frames', () => {
@@ -177,6 +219,11 @@ class UiScene extends Phaser.Scene {
       if (!game.player?.spritesheetKey) return this.flashExportHint('Load a spritesheet first');
       game.events.emit('exportSheet', this.getExportName());
     }));
+    exportRow.add(this.createSmallButton('GIF', () => {
+      const game = this.scene.get('GameScene');
+      if (!game.player?.spritesheetKey) return this.flashExportHint('Load a spritesheet first');
+      game.events.emit('exportGif', this.getExportName());
+    }));
     sequenceCol.add(exportRow, { align: 'left' });
 
     this.exportHintText = this.add.text(0, 0, '', {
@@ -186,8 +233,9 @@ class UiScene extends Phaser.Scene {
     });
     this.exportHintText.setAlpha(0);
     sequenceCol.add(this.exportHintText, { align: 'left' });
+    sequenceCol.add(this.infoText, { align: 'left' });
 
-    rootSizer.add(sequenceCol, { align: 'top' });
+    this.rootSizer.add(sequenceCol, { align: 'top' });
 
     // COLUMN 1: Sliders + info + BG picker stacked vertically
     const sliderCol = this.rexUI.add.sizer({
@@ -214,17 +262,24 @@ class UiScene extends Phaser.Scene {
     sliderCol.add(sliderGrid, { align: 'left' });
 
     const bottomRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 12 } });
-    const bgLabel = this.add.text(0, 0, 'Background:', {
+    const bgLabelCol = this.rexUI.add.sizer({ orientation: 'y', space: { item: 2 } });
+    const bgLabelTop = this.add.text(0, 0, 'Background:', {
       fontFamily: 'monogram',
       fontSize: FONT_SIZE,
-      color: hexToWebColor(TEXT_COLOR)
+      color: hexToWebColor(TEXT_COLOR),
     });
-    bottomRow.add(bgLabel);
-    bottomRow.add(this.createBackgroundPicker());
-    bottomRow.add(this.infoText);
+    const bgLabelBottom = this.add.text(0, 0, 'Drop Background:', {
+      fontFamily: 'monogram',
+      fontSize: FONT_SIZE,
+      color: hexToWebColor(TEXT_COLOR),
+    });
+    bgLabelCol.add(bgLabelTop, { align: 'left' });
+    bgLabelCol.add(bgLabelBottom, { align: 'left' });
+    bottomRow.add(bgLabelCol, { align: 'top' });
+    bottomRow.add(this.createBackgroundPicker(), { align: 'top' });
     sliderCol.add(bottomRow, { align: 'left' });
 
-    rootSizer.add(sliderCol, { align: 'top' });
+    this.rootSizer.add(sliderCol, { align: 'top' });
 
     // COLUMN 2: Animation Controls
     const checkboxCol = this.rexUI.add.sizer({
@@ -235,28 +290,190 @@ class UiScene extends Phaser.Scene {
     checkboxCol.add(this.createCheckboxWithLabel('<Y>oyo', false), { align: 'left' });
     checkboxCol.add(this.createCheckboxWithLabel('<P>ause', false), { align: 'left' });
 
-    rootSizer.add(checkboxCol, { align: 'top' });
+    this.rootSizer.add(checkboxCol, { align: 'top' });
 
-    rootSizer.setOrigin(0, 0).layout();
+    this.rootSizer.setOrigin(0, 0).layout();
   }
 
   createBackgroundPicker() {
-    const colors = ['#0d2b45', '#203c56', '#544e68', '#8d697a', '#d08159', '#ffaa5e', '#ffd4a3', '#ffecd6'];
-    const pickerSizer = this.rexUI.add.sizer({
-      orientation: 'x',
-      space: { item: 0 }
+    this.bgColors = ['#0d2b45', '#203c56', '#544e68', '#8d697a', '#d08159', '#ffaa5e', '#ffd4a3', '#ffecd6'];
+    this.bgState = this.loadBgState();
+
+    this.bgPickerEl = document.createElement('div');
+    this.bgPickerEl.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-family:monogram;';
+
+    this.bgPickerDom = this.add.dom(0, 0, this.bgPickerEl);
+    this.bgPickerDom.setOrigin(0, 0);
+
+    this.populateBgPicker();
+    this.time.delayedCall(0, () => this.applyActiveBg());
+
+    return this.bgPickerDom;
+  }
+
+  loadBgState() {
+    try {
+      const list = JSON.parse(localStorage.getItem('backgrounds') || '[]');
+      const active = localStorage.getItem('activeBg') || 'color:#0d2b45';
+      console.log('[bg] loadBgState', { listLen: list.length, ids: list.map(b => b.id), active });
+      return { list, active };
+    } catch (e) {
+      console.warn('[bg] loadBgState parse failed', e);
+      return { list: [], active: 'color:#0d2b45' };
+    }
+  }
+
+  saveBgState() {
+    try {
+      localStorage.setItem('backgrounds', JSON.stringify(this.bgState.list));
+      localStorage.setItem('activeBg', this.bgState.active);
+      console.log('[bg] saveBgState ok', { listLen: this.bgState.list.length, active: this.bgState.active });
+    } catch (e) {
+      console.warn('[bg] saveBgState FAILED (likely quota)', e);
+      throw e;
+    }
+  }
+
+  applyActiveBg() {
+    const game = this.scene.get('GameScene');
+    if (!game) { console.warn('[bg] applyActiveBg: no GameScene'); return; }
+    const [type, value] = this.bgState.active.split(/:(.+)/);
+    console.log('[bg] applyActiveBg', { type, value });
+    if (type === 'color') {
+      game.events.emit('clearBackgroundImage');
+      game.cameras.main.setBackgroundColor(value);
+    } else if (type === 'image') {
+      const bg = this.bgState.list.find(b => b.id === value);
+      if (bg) {
+        console.log('[bg] applyActiveBg emitting setBackgroundImage', bg.id, 'dataURL len=', bg.dataURL?.length);
+        game.events.emit('setBackgroundImage', { id: bg.id, dataURL: bg.dataURL });
+      } else {
+        console.warn('[bg] applyActiveBg: active id not in list, falling back to color');
+        this.bgState.active = 'color:' + this.bgColors[0];
+        this.saveBgState();
+        game.cameras.main.setBackgroundColor(this.bgColors[0]);
+      }
+    }
+  }
+
+  populateBgPicker() {
+    const TILE_W = 25, TILE_H = 20;
+    this.bgPickerEl.innerHTML = '';
+
+    const baseTileCss = `width:${TILE_W}px;height:${TILE_H}px;flex:0 0 auto;box-sizing:border-box;cursor:pointer;background-size:cover;background-position:center;`;
+    const selectedOutline = 'outline:2px solid #f9a875;outline-offset:-2px;';
+    const rowCss = 'display:flex;flex-direction:row;flex-wrap:nowrap;gap:0;align-items:center;';
+
+    const colorRow = document.createElement('div');
+    colorRow.style.cssText = rowCss;
+    this.bgColors.forEach(color => {
+      const tile = document.createElement('div');
+      const isActive = this.bgState.active === 'color:' + color;
+      tile.style.cssText = baseTileCss + `background:${color};` + (isActive ? selectedOutline : '');
+      tile.title = color;
+      tile.addEventListener('pointerdown', () => {
+        this.bgState.active = 'color:' + color;
+        this.saveBgState();
+        const game = this.scene.get('GameScene');
+        game.events.emit('clearBackgroundImage');
+        game.cameras.main.setBackgroundColor(color);
+        this.populateBgPicker();
+      });
+      colorRow.appendChild(tile);
+    });
+    this.bgPickerEl.appendChild(colorRow);
+
+    const imageRow = document.createElement('div');
+    imageRow.style.cssText = rowCss;
+
+    this.bgState.list.forEach(bg => {
+      const tile = document.createElement('div');
+      const isActive = this.bgState.active === 'image:' + bg.id;
+      tile.style.cssText = baseTileCss + `background-image:url(${bg.dataURL});` + (isActive ? selectedOutline : '');
+      tile.title = 'Background ' + bg.id + ' (right-click to remove)';
+      tile.addEventListener('pointerdown', () => {
+        this.bgState.active = 'image:' + bg.id;
+        this.saveBgState();
+        this.scene.get('GameScene').events.emit('setBackgroundImage', { id: bg.id, dataURL: bg.dataURL });
+        this.populateBgPicker();
+      });
+      tile.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.removeBackground(bg.id);
+      });
+      imageRow.appendChild(tile);
     });
 
-    colors.forEach(color => {
-      const rect = this.add.rectangle(0, 0, 25, 20, Phaser.Display.Color.HexStringToColor(color).color)
-        .setInteractive()
-        .on('pointerdown', () => {
-          this.scene.get('GameScene').cameras.main.setBackgroundColor(color);
-        });
-      pickerSizer.add(rect);
+    const plus = document.createElement('div');
+    const plusBaseCss = baseTileCss + 'border:1px dashed #f9a875;color:#f9a875;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;background:rgba(249,168,117,0.12);';
+    plus.style.cssText = plusBaseCss;
+    plus.textContent = '+';
+    plus.title = 'Drop an image file here to add a custom background';
+
+    plus.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      plus.style.cssText = plusBaseCss + 'background:rgba(249,168,117,0.5);border-style:solid;';
+    });
+    plus.addEventListener('dragleave', (e) => {
+      e.stopPropagation();
+      plus.style.cssText = plusBaseCss;
+    });
+    plus.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      plus.style.cssText = plusBaseCss;
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) this.addBackgroundFromFile(file);
     });
 
-    return pickerSizer;
+    imageRow.appendChild(plus);
+    this.bgPickerEl.appendChild(imageRow);
+
+    const colsW = this.bgColors.length * TILE_W;
+    const imgsW = (this.bgState.list.length + 1) * TILE_W;
+    const totalW = Math.max(colsW, imgsW);
+    const totalH = TILE_H * 2 + 2;
+    this.bgPickerEl.style.width = totalW + 'px';
+    this.bgPickerEl.style.height = totalH + 'px';
+    this.bgPickerDom.width = totalW;
+    this.bgPickerDom.height = totalH;
+    if (this.rootSizer) this.rootSizer.layout();
+  }
+
+  removeBackground(id) {
+    this.bgState.list = this.bgState.list.filter(b => b.id !== id);
+    if (this.bgState.active === 'image:' + id) {
+      this.bgState.active = 'color:' + this.bgColors[0];
+      const game = this.scene.get('GameScene');
+      game.events.emit('clearBackgroundImage');
+      game.cameras.main.setBackgroundColor(this.bgColors[0]);
+    }
+    this.saveBgState();
+    this.populateBgPicker();
+  }
+
+  addBackgroundFromFile(file) {
+    console.log('[bg] addBackgroundFromFile', file.name, file.type, file.size);
+    if (!file.type.startsWith('image/')) { console.warn('[bg] not an image, ignoring'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataURL = e.target.result;
+      const id = 'bg-' + Date.now();
+      console.log('[bg] read complete, pushing', id, 'dataURL len=', dataURL.length);
+      this.bgState.list.push({ id, dataURL });
+      this.bgState.active = 'image:' + id;
+      try {
+        this.saveBgState();
+      } catch (err) {
+        console.warn('[bg] saveBgState threw, rolling back');
+        this.bgState.list.pop();
+        return;
+      }
+      this.scene.get('GameScene').events.emit('setBackgroundImage', { id, dataURL });
+      this.populateBgPicker();
+    };
+    reader.readAsDataURL(file);
   }
 
   createSliderWithLabel(sizer, labelText, initialValue, minValue, maxValue, useDecimals) {
@@ -348,8 +565,8 @@ class UiScene extends Phaser.Scene {
       this.scene.get('GameScene').events.emit(`UI_toggle_${labelText}`, value);
     });
 
-    box.add(label)
-    box.add(checkbox)
+    box.add(label, { align: 'center' })
+    box.add(checkbox, { align: 'center' })
     box.layout()
 
 
@@ -399,9 +616,9 @@ class UiScene extends Phaser.Scene {
     return button;
   }
 
-  createButton(label, onClickCallback) {
+  createButton(label, onClickCallback, width = 120) {
     const button = this.rexUI.add.label({
-      width: 120,
+      width,
       height: 30,
       background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 6, PRIMARY_COLOR),
       fontSize: FONT_SIZE,

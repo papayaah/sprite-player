@@ -160,6 +160,9 @@ class Thumbs {
       this.container.destroy();
       this.container = this.scene.add.container(10, 10);
     }
+    if (typeof game !== 'undefined' && game.canvas) {
+      game.canvas.classList.remove('pointer-cursor', 'grab-cursor', 'grabbing-cursor', 'slider-hover-cursor');
+    }
   }
 }
 

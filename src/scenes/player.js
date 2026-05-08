@@ -191,6 +191,7 @@ class Player {
       this.sprite.destroy();
       this.sprite = null;
     }
+    game.canvas.classList.remove('pointer-cursor', 'grab-cursor', 'grabbing-cursor', 'slider-hover-cursor');
 
     this.imageWidth = imageWidth
     this.imageHeight = imageHeight

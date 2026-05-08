@@ -1,3 +1,5 @@
+import { GIFEncoder, quantize, applyPalette } from 'gifenc';
+
 function isFrameEmpty(frame) {
   if (!frame || !frame.cutWidth || !frame.cutHeight) return true;
   const canvas = document.createElement('canvas');
@@ -106,4 +108,44 @@ export function exportSpritesheet(scene, spritesheetKey, frameIndices, prefix) {
   });
 
   triggerDownload(sheet, `${prefix}.png`);
+}
+
+export function exportGif(scene, spritesheetKey, frameIndices, prefix, frameRate) {
+  if (!spritesheetKey || !frameIndices?.length) return;
+  const texture = scene.textures.get(spritesheetKey);
+  if (!texture) return;
+
+  frameIndices = trimTrailingEmpty(texture, frameIndices);
+  if (!frameIndices.length) return;
+
+  const sample = texture.get(frameIndices[0]);
+  if (!sample) return;
+
+  const fw = sample.cutWidth;
+  const fh = sample.cutHeight;
+  const delay = Math.max(20, Math.round(1000 / Math.max(1, frameRate || 10)));
+
+  const gif = GIFEncoder();
+
+  frameIndices.forEach((frameIndex) => {
+    const canvas = drawFrameToCanvas(texture, frameIndex);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const { data } = ctx.getImageData(0, 0, fw, fh);
+    const palette = quantize(data, 256, { format: 'rgba4444' });
+    const indexed = applyPalette(data, palette, 'rgba4444');
+    gif.writeFrame(indexed, fw, fh, { palette, delay, transparent: true });
+  });
+
+  gif.finish();
+
+  const blob = new Blob([gif.bytes()], { type: 'image/gif' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {
+    href: url, download: `${prefix}.gif`, style: 'display:none'
+  });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
