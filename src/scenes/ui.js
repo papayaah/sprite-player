@@ -92,6 +92,44 @@ class UiScene extends Phaser.Scene {
     }
   }
 
+  createExportInput(placeholder) {
+    const input = this.add.dom(0, 0, 'input', [
+      'background:#203c56',
+      'color:#fff6d3',
+      'border:1px solid #f9a875',
+      'font-family:monogram',
+      'font-size:13px',
+      'padding:2px 5px',
+      'width:108px',
+      'outline:none',
+      'box-sizing:border-box',
+    ].join(';'));
+    input.node.placeholder = placeholder;
+    input.width = 112;
+    input.height = 22;
+    input.setOrigin(0, 0.5);
+    return input;
+  }
+
+  getExportName() {
+    const prefix = this.exportNameInput.node.value.trim() || 'sprite';
+    const suffix = this.exportSuffixInput.node.value.trim();
+    return suffix ? `${prefix}${suffix}` : prefix;
+  }
+
+  flashExportHint(message) {
+    if (!this.exportHintText) return;
+    this.exportHintText.setText(message);
+    this.tweens.killTweensOf(this.exportHintText);
+    this.exportHintText.setAlpha(1);
+    this.tweens.add({
+      targets: this.exportHintText,
+      alpha: 0,
+      delay: 1500,
+      duration: 600,
+    });
+  }
+
   createUi() {
     const rootSizer = this.rexUI.add.sizer({
       x: 20,
@@ -122,33 +160,32 @@ class UiScene extends Phaser.Scene {
       this.scene.get('GameScene').sequence.clear();
     }), { align: 'left' });
 
-    this.exportNameInput = this.add.dom(0, 0, 'input', [
-      'background:#203c56',
-      'color:#fff6d3',
-      'border:1px solid #f9a875',
-      'font-family:monogram',
-      'font-size:13px',
-      'padding:2px 5px',
-      'width:108px',
-      'outline:none',
-      'box-sizing:border-box',
-    ].join(';'));
-    this.exportNameInput.node.placeholder = 'sprite_name';
-    this.exportNameInput.width = 112;
-    this.exportNameInput.height = 22;
-    this.exportNameInput.setOrigin(0, 0.5);
+    this.exportNameInput = this.createExportInput('sprite_name');
     sequenceCol.add(this.exportNameInput, { align: 'left' });
+
+    this.exportSuffixInput = this.createExportInput('suffix (optional)');
+    sequenceCol.add(this.exportSuffixInput, { align: 'left' });
 
     const exportRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 4 } });
     exportRow.add(this.createSmallButton('Frames', () => {
-      const prefix = this.exportNameInput.node.value.trim() || 'sprite';
-      this.scene.get('GameScene').events.emit('exportFrames', prefix);
+      const game = this.scene.get('GameScene');
+      if (!game.player?.spritesheetKey) return this.flashExportHint('Load a spritesheet first');
+      game.events.emit('exportFrames', this.getExportName());
     }));
     exportRow.add(this.createSmallButton('Sheet', () => {
-      const prefix = this.exportNameInput.node.value.trim() || 'sprite';
-      this.scene.get('GameScene').events.emit('exportSheet', prefix);
+      const game = this.scene.get('GameScene');
+      if (!game.player?.spritesheetKey) return this.flashExportHint('Load a spritesheet first');
+      game.events.emit('exportSheet', this.getExportName());
     }));
     sequenceCol.add(exportRow, { align: 'left' });
+
+    this.exportHintText = this.add.text(0, 0, '', {
+      fontFamily: 'm5x7',
+      fontSize: '13px',
+      color: hexToWebColor(ACCENT_COLOR),
+    });
+    this.exportHintText.setAlpha(0);
+    sequenceCol.add(this.exportHintText, { align: 'left' });
 
     rootSizer.add(sequenceCol, { align: 'top' });
 

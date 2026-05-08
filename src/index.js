@@ -118,16 +118,22 @@ class GameScene extends Phaser.Scene {
     })
 
     this.events.on('exportFrames', (prefix) => {
-      const frames = this.sequence.getCellFrames();
-      const toExport = frames.length > 0 ? frames : (this.player.selectedCells || []);
-      exportFrames(this, this.player.spritesheetKey, toExport, prefix);
+      exportFrames(this, this.player.spritesheetKey, this.getExportFrameIndices(), prefix);
     }, this)
 
     this.events.on('exportSheet', (prefix) => {
-      const frames = this.sequence.getCellFrames();
-      const toExport = frames.length > 0 ? frames : (this.player.selectedCells || []);
-      exportSpritesheet(this, this.player.spritesheetKey, toExport, prefix);
+      exportSpritesheet(this, this.player.spritesheetKey, this.getExportFrameIndices(), prefix);
     }, this)
+  }
+
+  getExportFrameIndices() {
+    const sequenced = this.sequence.getCellFrames();
+    if (sequenced.length > 0) return sequenced;
+    const selected = this.player.selectedCells || [];
+    if (selected.length > 0) return selected;
+    if (!this.player.spritesheetKey) return [];
+    const total = this.textures.get(this.player.spritesheetKey).frameTotal - 1;
+    return Array.from({ length: total }, (_, i) => i);
   }
 
   createMiniSheet(frameData) {

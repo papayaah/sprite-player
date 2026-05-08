@@ -1,3 +1,27 @@
+function isFrameEmpty(frame) {
+  if (!frame || !frame.cutWidth || !frame.cutHeight) return true;
+  const canvas = document.createElement('canvas');
+  canvas.width = frame.cutWidth;
+  canvas.height = frame.cutHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(
+    frame.source.image,
+    frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
+    0, 0, frame.cutWidth, frame.cutHeight
+  );
+  const data = ctx.getImageData(0, 0, frame.cutWidth, frame.cutHeight).data;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] !== 0) return false;
+  }
+  return true;
+}
+
+function trimTrailingEmpty(texture, frameIndices) {
+  let last = frameIndices.length - 1;
+  while (last >= 0 && isFrameEmpty(texture.get(frameIndices[last]))) last--;
+  return frameIndices.slice(0, last + 1);
+}
+
 function drawFrameToCanvas(texture, frameIndex) {
   const frame = texture.get(frameIndex);
   if (!frame) return null;
@@ -30,6 +54,9 @@ export function exportFrames(scene, spritesheetKey, frameIndices, prefix) {
   const texture = scene.textures.get(spritesheetKey);
   if (!texture) return;
 
+  frameIndices = trimTrailingEmpty(texture, frameIndices);
+  if (!frameIndices.length) return;
+
   // Export every entry in sequence order — duplicates become their own numbered file
   frameIndices.forEach((frameIndex, i) => {
     const canvas = drawFrameToCanvas(texture, frameIndex);
@@ -44,26 +71,39 @@ export function exportSpritesheet(scene, spritesheetKey, frameIndices, prefix) {
   const texture = scene.textures.get(spritesheetKey);
   if (!texture) return;
 
+  frameIndices = trimTrailingEmpty(texture, frameIndices);
+  if (!frameIndices.length) return;
+
   const sample = texture.get(frameIndices[0]);
   if (!sample) return;
 
   const fw = sample.cutWidth;
   const fh = sample.cutHeight;
+  const n = frameIndices.length;
+
+  // Square layout when count is a perfect square ≥ 4; otherwise a single horizontal strip
+  const root = Math.sqrt(n);
+  const isSquare = n >= 4 && Number.isInteger(root);
+  const cols = isSquare ? root : n;
+  const rows = isSquare ? root : 1;
+
   const sheet = document.createElement('canvas');
-  sheet.width = fw * frameIndices.length;
-  sheet.height = fh;
+  sheet.width = fw * cols;
+  sheet.height = fh * rows;
   const ctx = sheet.getContext('2d');
 
   // Preserve full sequence order (including repeated frames)
   frameIndices.forEach((frameIndex, i) => {
     const frame = texture.get(frameIndex);
     if (!frame) return;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
     ctx.drawImage(
       frame.source.image,
       frame.cutX, frame.cutY, fw, fh,
-      i * fw, 0, fw, fh
+      col * fw, row * fh, fw, fh
     );
   });
 
-  triggerDownload(sheet, `${prefix}_sheet.png`);
+  triggerDownload(sheet, `${prefix}.png`);
 }
