@@ -107,7 +107,7 @@ class Thumbs {
 
         if (this.textures.exists(storageKey)) {
             const sprite = this.scene.add.sprite(0, 0, storageKey).setOrigin(0.5, 0.5);
-            scaleSpriteToFit(sprite, labelWidth - 4, labelHeight - 4);
+            scaleSpriteToFit(sprite, labelWidth, labelHeight);
 
             var item = this.scene.rexUI.add.label({
               width: labelWidth,
@@ -116,7 +116,7 @@ class Thumbs {
               icon: sprite,
               align: 'center',
               orientation: 'y',
-              space: { left: 2, right: 2, top: 2, bottom: 2, icon: 0, text: 0 },
+              space: { left: 0, right: 0, top: 0, bottom: 0, icon: 0, text: 0 },
             })
 
             item

@@ -214,8 +214,14 @@ class UiScene extends Phaser.Scene {
     sliderCol.add(sliderGrid, { align: 'left' });
 
     const bottomRow = this.rexUI.add.sizer({ orientation: 'x', space: { item: 12 } });
-    bottomRow.add(this.infoText);
+    const bgLabel = this.add.text(0, 0, 'Background:', {
+      fontFamily: 'monogram',
+      fontSize: FONT_SIZE,
+      color: hexToWebColor(TEXT_COLOR)
+    });
+    bottomRow.add(bgLabel);
     bottomRow.add(this.createBackgroundPicker());
+    bottomRow.add(this.infoText);
     sliderCol.add(bottomRow, { align: 'left' });
 
     rootSizer.add(sliderCol, { align: 'top' });
